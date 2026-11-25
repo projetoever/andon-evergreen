@@ -7,7 +7,6 @@ import {
   ArrowDown,
   ArrowUp,
   ChevronDown,
-  Pencil,
   CircleHelp,
   Filter,
   GripVertical,
@@ -28,6 +27,7 @@ import { PrioritySectionNav, type PrioritySectionId } from "@/components/priorit
 import { PriorityActivationBadge, PriorityProductionBadge } from "@/components/priority/PriorityMachineBadges";
 import { PriorityOverviewPanel } from "@/components/priority/PriorityOverviewPanel";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { reorderVisiblePriorityIds } from "@/utils/priorityFilteredOrder";
 import { canShowPriorityMachineHistory } from "@/utils/priorityHistoryVisibility";
@@ -87,6 +87,11 @@ export function DashboardPriorityPage() {
   const [pendingSchedule, setPendingSchedule] = useState<{
     machineId: string; currentMode: ProductionMode; requestedMode: ProductionMode;
   } | null>(null);
+  const [scheduleConfirmation, setScheduleConfirmation] = useState<{
+    machineId: string; machineName: string;
+    currentMode: ProductionMode; requestedMode: ProductionMode;
+  } | null>(null);
+  const [pendingUnsavedAction, setPendingUnsavedAction] = useState<"reload" | "logout" | null>(null);
   const [scheduleCheckingId, setScheduleCheckingId] = useState<string | null>(null);
   const scheduleSubmittingRef = useRef(false);
   const [scheduleRequester, setScheduleRequester] = useState<{
@@ -104,11 +109,10 @@ export function DashboardPriorityPage() {
   const activeMachineCount = activeRows.length;
   const effectiveHighlightCount = Math.min(priorityHighlightCount, activeMachineCount);
   const canShowGlobalRanks = !access?.centralAccessEnabled || access?.principal?.machineScope === "all";
-  useBlocker({
-    shouldBlockFn: () =>
-      hasUnsavedChanges &&
-      !leavingAfterLogout.current &&
-      !window.confirm(ui("Descartar as alterações de prioridade ainda não salvas?")),
+  const navigationBlocker = useBlocker({
+    shouldBlockFn: () => hasUnsavedChanges && !leavingAfterLogout.current,
+    withResolver: true,
+    // The browser itself handles closing/reloading a tab with unsaved data.
     enableBeforeUnload: hasUnsavedChanges,
   });
 
@@ -281,12 +285,15 @@ export function DashboardPriorityPage() {
     }
   }
 
-  async function handleLogout() {
-    if (
-      hasUnsavedChanges &&
-      !window.confirm(ui("Descartar as alterações de prioridade ainda não salvas?"))
-    )
+  function requestReload() {
+    if (hasUnsavedChanges) {
+      setPendingUnsavedAction("reload");
       return;
+    }
+    void loadOrder();
+  }
+
+  async function finishLogout() {
     leavingAfterLogout.current = true;
     await logoutDashboardPriority();
     setAuthenticated(false);
@@ -295,8 +302,16 @@ export function DashboardPriorityPage() {
     void navigate({ to: returnTo });
   }
 
+  async function handleLogout() {
+    if (hasUnsavedChanges) {
+      setPendingUnsavedAction("logout");
+      return;
+    }
+    await finishLogout();
+  }
+
   async function requestScheduleChange(machine: DashboardPriorityMachine) {
-    if (scheduleSubmittingRef.current || scheduleCheckingId || pendingSchedule || isLoading || isSaving ||
+    if (scheduleSubmittingRef.current || scheduleCheckingId || pendingSchedule || scheduleConfirmation || isLoading || isSaving ||
         !machine.isActive || !machine.productionMode ||
         access?.centralAccessEnabled !== true) return;
     if (hasUnsavedChanges) {
@@ -333,19 +348,13 @@ export function DashboardPriorityPage() {
       const canWrite = principal!.isPrimaryAdmin === true ||
         principal!.permissions?.includes("production.schedule.write") === true;
       if (canWrite) {
-        if (!window.confirm(ui("Confirmar programação de {0} como {1}?", {
-          0: machine.name,
-          1: ui(target === "scheduled" ? "Produção Programada" : "Fora de Produção"),
-        }))) return;
-        // Backend revalidates the session, permission, machine scope, CSRF,
-        // workstation, expected mode (409), transaction and audit.
-        await accessRequest("/machines/production-mode/session", "POST", {
+        // Confirm in the ANDON interface before the audited production change.
+        setScheduleConfirmation({
           machineId: machine.id,
-          expectedProductionMode: machine.productionMode,
-          productionMode: target,
+          machineName: machine.name,
+          currentMode: machine.productionMode,
+          requestedMode: target,
         });
-        toast.success(ui("Programação de produção atualizada com autorização."));
-        await loadOrder();
       } else {
         // Request-only operator: an authorized second person must approve.
         setPendingSchedule({
@@ -354,6 +363,42 @@ export function DashboardPriorityPage() {
           requestedMode: target,
         });
       }
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "";
+      if (message.includes("production_mode_changed")) {
+        toast.error(ui("A programação foi alterada em outra estação. Atualizando o estado."));
+        void loadOrder();
+      } else if (/permission_denied|machine_scope_denied|authentication_required|workstation_denied/.test(message)) {
+        setScheduleRequester(null);
+        toast.error(ui("Sua sessão ou permissão não permite alterar esta máquina."));
+      } else {
+        toast.error(ui("Não foi possível alterar a programação. Confira a conexão e tente novamente."));
+      }
+    } finally {
+      scheduleSubmittingRef.current = false;
+      setScheduleCheckingId(null);
+    }
+  }
+
+  async function confirmScheduleChange() {
+    const confirmation = scheduleConfirmation;
+    if (!confirmation || scheduleSubmittingRef.current || isSaving || isLoading) return;
+    setScheduleConfirmation(null);
+    if (hasUnsavedChanges) {
+      toast.error(ui("Salve ou descarte as alterações de prioridade antes de alterar a programação."));
+      return;
+    }
+    scheduleSubmittingRef.current = true;
+    setScheduleCheckingId(confirmation.machineId);
+    try {
+      // The backend rechecks rights, scope, workstation, CSRF, expected mode/409 and audit.
+      await accessRequest("/machines/production-mode/session", "POST", {
+        machineId: confirmation.machineId,
+        expectedProductionMode: confirmation.currentMode,
+        productionMode: confirmation.requestedMode,
+      });
+      toast.success(ui("Programação de produção atualizada com autorização."));
+      await loadOrder();
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "";
       if (message.includes("production_mode_changed")) {
@@ -392,11 +437,7 @@ export function DashboardPriorityPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" size="sm"
               disabled={isLoading || isSaving}
-              onClick={() => {
-                if (!hasUnsavedChanges ||
-                    window.confirm(ui("Descartar as alterações de prioridade ainda não salvas?")))
-                  void loadOrder();
-              }}>
+              onClick={requestReload}>
               <RefreshCw className="mr-1 h-4 w-4" aria-hidden="true" />
               {ui("Atualizar")}
             </Button>
@@ -757,11 +798,7 @@ export function DashboardPriorityPage() {
           </p>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" disabled={isSaving || isLoading}
-              onClick={() => {
-                if (!hasUnsavedChanges ||
-                    window.confirm(ui("Descartar as alterações de prioridade ainda não salvas?")))
-                  void loadOrder();
-              }}>
+              onClick={requestReload}>
               {ui("Recarregar sequência")}
             </Button>
             <Button
