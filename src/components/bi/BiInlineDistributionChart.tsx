@@ -3,7 +3,7 @@ import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Too
 import { getInterfaceLocale, ui } from "@/i18n/translate";
 import { BiChartAlternative } from "./BiChartAlternative";
 import { availableBiChartModes, type BiChartMode } from "./biChartModePolicy";
-import { biChartGradientId, biChartGridColor, biChartPalette, biChartTooltipStyle } from "./biChartVisualTheme";
+import { biChartGradientId, biChartGridColor, biChartPalette, biChartTooltipProps } from "./biChartVisualTheme";
 
 type Item = { id: string; label: string; value: number | null };
 type Props = {
@@ -70,7 +70,7 @@ export function BiInlineDistributionChart({
                 tickFormatter={(v) => String(v).length > 19 ? String(v).slice(0, 18) + "…" : String(v)}
                 axisLine={false} tickLine={false} />
               <Tooltip formatter={(v) => [format(v == null ? null : Number(v)), ui("Valor observado")]}
-                contentStyle={biChartTooltipStyle} />
+                {...biChartTooltipProps} />
               <Bar dataKey="value" fill={"url(#" + gradientId + ")"} radius={[0, 7, 7, 0]} maxBarSize={29} background={{fill:"var(--muted)",fillOpacity:0.21}} animationDuration={420}
                 onClick={(row) => { const item=row as {id?:string;payload?:{id?:string}}; const id=item.payload?.id ?? item.id; if(id)choose(String(id)); }}>
                 {rows.map(row => <Cell key={row.id} fill={"url(#" + gradientId + ")"} fillOpacity={selectedId && selectedId !== row.id ? .35 : 1} cursor={onInspect ? "pointer" : "default"} />)}
