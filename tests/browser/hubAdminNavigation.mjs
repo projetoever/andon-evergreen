@@ -372,6 +372,15 @@ try {
     else
       assert.equal(await page.getByRole("button", { name: hubNavLabel, exact: true }).getAttribute("aria-expanded"), "false");
     await noOverflow();
+    if (viewport.width < 640) {
+      // Edge-case: shortest supported phone still opens every authorized section.
+      await page.setViewportSize({ width: 320, height: 568 });
+      await noOverflow();
+      assert.equal(await countAdminNavItems(hubNavLabel), 5);
+      await page.screenshot({ path: `${output}/320-overview.png`, fullPage: true });
+      await page.setViewportSize(viewport);
+      await noOverflow();
+    }
     await page.screenshot({ path: `${output}/${viewport.width}-overview.png`, fullPage: true });
     assert.equal(await page.getByRole("link",{name:"Gerenciar workstations",exact:true}).getAttribute("href"),
       "/hub/admin?section=workstations");
