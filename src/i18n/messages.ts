@@ -1,6 +1,7 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   // PENTE 2 — configurable priority highlight count and operational overview.
+  ["Usa a sequência do responsável e destaca P1 até a quantidade configurada no módulo Prioridades.", "Uses the manager’s sequence and highlights P1 through the count set in Priorities.", "依管理者順序顯示，並突出標示從 P1 至優先順序模組中設定的數量。"],
   ["Selecione entre 1 e {0} máquinas ativas.","Select between 1 and {0} active machines.","請選擇 1 至 {0} 部啟用中的機台。"],
   ["Arraste as máquinas ou use ↑/↓. A quantidade configurada de máquinas ativas recebe destaque no Dashboard.","Drag machines or use ↑/↓. The configured number of active machines is highlighted on the Dashboard.","拖動機台或使用 ↑/↓。儀表板會突出顯示設定數量的啟用機台。"],
   ["Somente usuários autorizados podem salvar uma sequência e a quantidade de destaques P1 a Pn no Dashboard.","Only authorized users may save the machine order and the P1–Pn highlight count.","只有授權使用者可以儲存機台順序與 P1 至 Pn 的突出顯示數量。"],
