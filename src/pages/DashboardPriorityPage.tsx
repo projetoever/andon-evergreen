@@ -104,8 +104,6 @@ export function DashboardPriorityPage() {
   const activeMachineCount = activeRows.length;
   const effectiveHighlightCount = Math.min(priorityHighlightCount, activeMachineCount);
   const canShowGlobalRanks = !access?.centralAccessEnabled || access?.principal?.machineScope === "all";
-  const prioritizedRows = canShowGlobalRanks ? activeRows.slice(0, effectiveHighlightCount) : [];
-  const upcomingRows = canShowGlobalRanks ? activeRows.slice(effectiveHighlightCount, effectiveHighlightCount + 5) : [];
   useBlocker({
     shouldBlockFn: () =>
       hasUnsavedChanges &&
