@@ -61,6 +61,7 @@ export function DashboardPriorityPage() {
   const passwordRequired =
     access?.modules.find((item) => item.id === "priorities")?.passwordRequired !== false;
   const leavingAfterLogout = useRef(false);
+  const proceedingNavigationRef = useRef(false);
   const [authenticated, setAuthenticated] = useState(
     () => !passwordRequired || isDashboardPriorityAuthenticated(),
   );
@@ -953,14 +954,17 @@ export function DashboardPriorityPage() {
       <ConfirmDialog
         open={navigationBlocker.status === "blocked"}
         onOpenChange={(open) => {
-          if (!open && navigationBlocker.status === "blocked") navigationBlocker.reset();
+          if (!open && navigationBlocker.status === "blocked" && !proceedingNavigationRef.current) navigationBlocker.reset();
         }}
         title={ui("Existem alterações de prioridade não salvas.")}
         description={ui("Descartar as alterações de prioridade ainda não salvas?")}
         confirmLabel={ui("Descartar")}
         destructive
         onConfirm={() => {
-          if (navigationBlocker.status === "blocked") navigationBlocker.proceed();
+          if (navigationBlocker.status === "blocked") {
+            proceedingNavigationRef.current = true;
+            navigationBlocker.proceed();
+          }
         }}
       />
       {pendingSchedule && (
