@@ -390,9 +390,11 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
     const machineIds = request.body.machineIds;
     const expectedMachineIds = request.body.expectedMachineIds;
     const isHighlightChange = request.body.priorityHighlightCount !== undefined;
-    if (isHighlightChange && (!Number.isInteger(request.body.priorityHighlightCount) ||
+    if (isHighlightChange && (typeof request.body.priorityHighlightCount !== "number" ||
+        !Number.isInteger(request.body.priorityHighlightCount) ||
         Number(request.body.priorityHighlightCount) < 1 ||
         Number(request.body.priorityHighlightCount) > 1000 ||
+        typeof request.body.expectedPriorityHighlightCount !== "number" ||
         !Number.isInteger(request.body.expectedPriorityHighlightCount)))
       return badRequest(reply, "Quantidade de destaques inválida.");
     if (!Array.isArray(expectedMachineIds) || expectedMachineIds.length > 1000 ||
