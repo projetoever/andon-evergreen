@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { ArrowLeft, LayoutGrid, LogOut, MonitorCog, Plug, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { withHubTransientRetry, isRetryableHubTransitionFailure } from "@/services/hubTransitionRetry";
 import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
 import { HubClientIdentitySettings } from "@/components/settings/HubClientIdentitySettings";
 import { HubCentralManagerPage } from "./HubCentralManagerPage";
@@ -21,7 +23,7 @@ function CentralOverview() {
   const [error, setError] = useState(false);
   const refresh = useCallback(async () => {
     try {
-      setStations(await accessRequest<ManagedWorkstation[]>("/workstations"));
+      setStations(await withHubTransientRetry(() => accessRequest<ManagedWorkstation[]>("/workstations")));
       setError(false);
     } catch {
       setStations(null);
@@ -97,11 +99,13 @@ export function HubCentralAdminPage() {
   const [logoutError, setLogoutError] = useState("");
   const refresh = useCallback(async () => {
     try {
-      setSession(await accessRequest<AccessState>("/session"));
+      setSession(await withHubTransientRetry(() => accessRequest<AccessState>("/session")));
       setSessionError("");
     } catch (cause) {
       setSession(null);
-      setSessionError(cause instanceof Error && cause.message === "https_required" ? "https_required" : "");
+      setSessionError(cause instanceof Error && cause.message === "https_required"
+        ? "https_required"
+        : isRetryableHubTransitionFailure(cause) ? "temporarily_unavailable" : "");
     } finally {
       setLoading(false);
     }
@@ -146,7 +150,28 @@ export function HubCentralAdminPage() {
     ? "overview"
     : requestedSection ?? "overview";
   if (loading)
-    return <main className="min-h-dvh bg-background" aria-label={ui("Verificando sessão administrativa")} />;
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-background p-5">
+        <section role="status" aria-live="polite" className="w-full max-w-lg space-y-4 rounded-xl border border-border bg-card p-6">
+          <p className="font-semibold">{ui("Verificando sessão administrativa")}</p>
+          <Skeleton className="h-6 w-2/3 motion-reduce:animate-none" />
+          <Skeleton className="h-4 w-full motion-reduce:animate-none" />
+        </section>
+      </main>
+    );
+  if (sessionError === "temporarily_unavailable")
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-background p-5">
+        <section role="status" className="w-full max-w-lg space-y-4 rounded-xl border border-border bg-card p-6">
+          <p className="text-sm font-semibold">
+            {ui("Conexão temporariamente indisponível. Verificando novamente sem encerrar sua sessão.")}
+          </p>
+          <Button type="button" variant="outline" onClick={() => void refresh()}>
+            {ui("Tentar novamente")}
+          </Button>
+        </section>
+      </main>
+    );
   // Installation bootstrap is the ONE exception to the central Admin gate.
   // Server /api/access/initialize still requires approved workstation, HTTPS,
   // CSRF, the existing legacy Admin secret, and an uninitialized DB.
