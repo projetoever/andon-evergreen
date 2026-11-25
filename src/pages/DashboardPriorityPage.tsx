@@ -473,14 +473,14 @@ export function DashboardPriorityPage() {
         {!centralReadOnly && (
           <section className="rounded-xl border border-primary/25 bg-card px-4 py-3"
             aria-label={ui("Configurar quantidade de prioridades")}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="grid items-center gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
               <div className="min-w-0 space-y-1">
                 <h2 className="text-sm font-bold text-foreground">{ui("Quantidade de cards prioritários")}</h2>
                 <p className="max-w-xl text-xs text-muted-foreground">
                   {ui("Escolha quantas máquinas ativas terão destaque P1 até P{0} no Dashboard ANDON. A alteração só entra em vigor ao salvar.", { 0: effectiveHighlightCount })}
                 </p>
               </div>
-              <label className="flex items-center gap-2 text-xs font-semibold">
+              <label className="flex items-center justify-between gap-2 text-xs font-semibold sm:justify-end">
                 <span>{ui("Prioridades")}</span>
                 <select aria-label={ui("Quantidade de cards prioritários")}
                   className="h-10 min-w-20 rounded-lg border border-input bg-background px-3 text-base font-bold text-foreground"
@@ -616,7 +616,7 @@ export function DashboardPriorityPage() {
               {rows.length === 0 ? ui("Nenhuma máquina disponível para ordenar.") : ui("Nenhuma máquina corresponde aos filtros.")}
             </p>
           ) : (
-            <div className="space-y-2 p-2 sm:p-3">
+            <div className="space-y-2 p-2 pb-5 sm:p-3 sm:pb-5">
               {visibleRows.map((row, index) => {
                 const activeRank = activePriorityRanks.get(row.id) ?? null;
                 return (
@@ -745,7 +745,7 @@ export function DashboardPriorityPage() {
               ? ui("Alterações não salvas. O Dashboard ainda usa a sequência anterior.")
               : ui("Sequência sincronizada.")}
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" disabled={isSaving || isLoading}
               onClick={() => {
                 if (!hasUnsavedChanges ||
