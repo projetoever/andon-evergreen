@@ -69,7 +69,7 @@ export function BiInlineDistributionChart({
               <Tooltip formatter={(v) => [format(Number(v)), ui("Valor observado")]}
                 contentStyle={{ background:"var(--popover)", borderColor:"var(--border)", borderRadius:10 }} />
               <Bar dataKey="value" fill={color} radius={[0, 4, 4, 0]} maxBarSize={23}
-                onClick={(row) => { if (row?.id) choose(String(row.id)); }}>
+                onClick={(row) => { const item=row as {id?:string;payload?:{id?:string}}; const id=item.payload?.id ?? item.id; if(id)choose(String(id)); }}>
                 {rows.map(row => <Cell key={row.id} fill={color} fillOpacity={selectedId && selectedId !== row.id ? .35 : .94} cursor={onInspect ? "pointer" : "default"} />)}
               </Bar>
             </BarChart>
