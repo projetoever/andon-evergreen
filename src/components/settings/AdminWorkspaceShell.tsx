@@ -46,6 +46,17 @@ export function AdminWorkspaceShell({
   useInterfaceLanguage();
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
+  // Rotation/resize while the phone drawer is open must never leave an invisible
+  // overlay locking a tablet or desktop viewport.
+  useEffect(() => {
+    const tablet = window.matchMedia("(min-width: 640px)");
+    const closeOnTablet = () => {
+      if (tablet.matches) setMobileNavigationOpen(false);
+    };
+    tablet.addEventListener("change", closeOnTablet);
+    closeOnTablet();
+    return () => tablet.removeEventListener("change", closeOnTablet);
+  }, []);
   useEffect(() => {
     if (resetContentScrollOnTabChange && contentScrollRef.current) {
       contentScrollRef.current.scrollTop = 0;
