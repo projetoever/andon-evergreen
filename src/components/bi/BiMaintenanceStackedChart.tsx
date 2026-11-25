@@ -32,7 +32,7 @@ export function BiMaintenanceStackedChart({ rows, height = 265 }: {
       <div className="flex flex-wrap items-center gap-4 text-[11px] font-semibold text-muted-foreground">
         <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-sky-400"/>{ui("Manutenção")}</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-400"/>{ui("Acompanhamento")}</span>
-        <span className="ml-auto">{ui("Escala em horas por pessoa")}</span>
+        <span className="ml-auto">{ui("Escala em horas técnicas")}</span>
       </div>
       <div style={{height}} className="w-full min-w-0" role="img"
         aria-label={ui("Comparativo empilhado de tempo de manutenção e acompanhamento por técnico ou área")}>
