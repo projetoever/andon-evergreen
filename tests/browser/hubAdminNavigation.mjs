@@ -527,10 +527,12 @@ try {
     assert.equal(await countAdminNavItems(hubNavLabel), 4);
     const centralItems = await openAdminNav(hubNavLabel);
     assert.equal(await centralItems.getByRole("link", { name: "Configurações gerais do Hub" }).count(), 0);
+    assert.equal(await centralItems.getByRole("link", { name: "Integrações API" }).count(), 1);
+    // A modal drawer correctly makes the background inaccessible to screen
+    // readers; verify underlying content only after the drawer is closed.
+    await closeAdminNav();
     await page.getByRole("region", { name: "Identificação da empresa e unidade" }).waitFor();
     await page.getByRole("region", { name: "Estado da autenticação do Hub" }).waitFor();
-    assert.equal(await centralItems.getByRole("link", { name: "Integrações API" }).count(), 1);
-    await closeAdminNav();
     await page.getByRole("region", { name: "Identificação da versão instalada" }).waitFor();
     assert.equal(await page.getByRole("dialog", { name: "Acesso administrativo" }).count(), 0);
     await noOverflow();
