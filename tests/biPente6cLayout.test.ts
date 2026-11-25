@@ -35,12 +35,13 @@ test("PENTE6C: qualidade reduz gráficos zeros, prioriza listagem e recolhe lege
   assert.match(quality, /onCategoryChange/);
 });
 
-test("PENTE6C: detalhes de Falhas expandem com rolagem e preservam drilldown", () => {
+test("PENTE6C: Falhas remove seções duplicadas, amplia gráfico e preserva drilldown", () => {
   const fail = read("../src/components/bi/BiFailureWorkspace.tsx");
-  assert.match(fail, /items-start gap-4 lg:grid-cols-2/);
-  assert.match(fail, /max-h-\[300px\]/g);
-  assert.match(fail, /Ver classificações detalhadas/);
-  assert.match(fail, /Ver setores detalhados/);
+  assert.match(fail, /items-stretch gap-4 lg:grid-cols-2/);
+  assert.match(fail, /height=\{330\}/g);
+  assert.doesNotMatch(fail, /Ver classificações detalhadas|Ver setores detalhados/);
+  assert.doesNotMatch(fail, /<details/);
+  assert.match(fail, /<BiChartExplorer launcher/g);
   assert.match(fail, /onDrilldown\(/);
   assert.doesNotMatch(fail, /lg:h-full lg:min-h-0/);
 });
