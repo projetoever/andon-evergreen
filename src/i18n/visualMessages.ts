@@ -202,12 +202,10 @@ export const visualMessages: ReadonlyArray<readonly [string,string,string]> = [
 ["Filtrar máquinas pela cobertura","Filter machines by coverage","依涵蓋狀態篩選設備"],
 ["Incompletas","Incomplete","不完整"],
 ["Completas","Complete","完整"],
-["Todas","All","全部"],
 ["Completo · produção programada","Complete · scheduled production","完整・排程生產"],
 ["Completo · sem produção programada","Complete · no scheduled production","完整・無排程生產"],
 ["Programação verificada","Verified schedule","已驗證排程"],
 ["Lacuna ou modo desconhecido","Gap or unknown mode","紀錄缺口或未知模式"],
 ["Nenhuma máquina neste grupo.","No machines in this group.","此群組沒有設備。"],
 ["Nenhum alerta neste grupo","No alerts in this group","此群組沒有警示"],
-["Como interpretar","How to interpret","如何判讀"]
 ];
