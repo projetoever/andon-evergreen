@@ -222,7 +222,7 @@ export function HubAuditPanel({ open, onOpenChange, canExport }: {
                         <summary className="cursor-pointer font-semibold text-primary">{ui("Ver detalhes")}</summary>
                         <div className="mt-2 max-w-md space-y-1 text-xs">
                           {item.workstationId && <p className="break-all">{ui("Workstation")}: {item.workstationId}</p>}
-                          {item.ipAddress && <p>IP: {item.ipAddress}</p>}
+                          {item.ipAddress && <p>{ui("IP")}: {item.ipAddress}</p>}
                           {item.reason && <p className="break-words">{ui("Motivo")}: {item.reason}</p>}
                           <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-all rounded bg-muted p-2">
                             {JSON.stringify({ before: item.before, after: item.after }, null, 2)}
