@@ -20,7 +20,7 @@ test("PENTE6C: modal de cobertura distingue histórico, programação e posiçã
   assert.match(modal, /Históricos incompletos/);
   assert.match(modal, /Máquinas a verificar:/);
   assert.match(modal, /complete_no_scheduled/);
-  assert.match(modal, /mode|no_history|no_history/); // reasons stay a readonly snapshot
+  assert.match(modal, /no_history/); // reasons stay a readonly snapshot
   assert.match(modal, /overflow-auto/);
   assert.doesNotMatch(modal, /fetch\(|axios\(|POST|PATCH|DELETE|localStorage/);
 });
