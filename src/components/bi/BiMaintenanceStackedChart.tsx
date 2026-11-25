@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { biChartGradientId, biChartGridColor, biChartTooltipStyle } from "./biChartVisualTheme";
+import { biChartGradientId, biChartGridColor, biChartTooltipProps } from "./biChartVisualTheme";
 import { getInterfaceLocale, ui } from "@/i18n/translate";
 
 export type TechnicalEffortChartRow = {
@@ -55,7 +55,7 @@ export function BiMaintenanceStackedChart({ rows, height = 265 }: {
               tick={{fill:"var(--muted-foreground)",fontSize:10}}
               tickFormatter={v => String(v).length > 18 ? String(v).slice(0,17) + "…" : String(v)}/>
             <Tooltip formatter={(v, name) => [duration(Number(v)), String(name)]}
-              contentStyle={biChartTooltipStyle}/>
+              {...biChartTooltipProps}/>
             <Bar dataKey="maintenanceMinutes" stackId="technical" name={ui("Manutenção")} fill={"url(#"+maintenanceFill+")"} maxBarSize={30} radius={[4,0,0,4]} background={{fill:"var(--muted)",fillOpacity:0.20}} animationDuration={420}>
               {chartRows.map(row => <Cell key={row.id} fill={"url(#"+maintenanceFill+")"}/>)}
             </Bar>
