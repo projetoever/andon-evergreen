@@ -46,14 +46,18 @@ const PUBLIC_SYSTEM_SETTINGS_SELECT = {
 } as const;
 
 export async function getSystemSettings() {
-  const settings = await prisma.systemSettings.upsert({
+  const [settings, priority] = await Promise.all([prisma.systemSettings.upsert({
     where: { id: GLOBAL_SYSTEM_SETTINGS_ID },
     update: {},
     create: { id: GLOBAL_SYSTEM_SETTINGS_ID },
     select: PUBLIC_SYSTEM_SETTINGS_SELECT,
-  });
+  }), prisma.dashboardPriorityConfig.findUnique({
+    where: { id: "global" }, select: { priorityHighlightCount: true },
+  })]);
   return {
     ...settings,
+    // Read-only shared presentation setting; no account/editor data exposed.
+    priorityHighlightCount: priority?.priorityHighlightCount ?? 5,
     andonVisualPalette: publicVisualPalette(settings.andonVisualPalette),
     andonVisualPaletteRevision: publicVisualPaletteRevision(settings.andonVisualPaletteRevision),
     andonVisualPaletteWriteEnabled: centralVisualPaletteWritesEnabled(),
