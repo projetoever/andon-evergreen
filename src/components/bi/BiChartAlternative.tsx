@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { ui } from "@/i18n/translate";
-import { biChartGradientId, biChartGridColor, biChartPalette, biChartTooltipStyle } from "./biChartVisualTheme";
+import { biChartGradientId, biChartGridColor, biChartPalette, biChartTooltipProps } from "./biChartVisualTheme";
 import { Area, AreaChart, Bar, CartesianGrid, Cell, ComposedChart, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { biParetoRows, type BiChartMode, type BiChartDatum } from "./biChartModePolicy";
 
@@ -22,7 +22,7 @@ export function BiChartAlternative({mode, rows, unit, color, selectedId, onSelec
     <YAxis width={60} domain={unit==="percent" ? [0,100] : [0,"auto"]}
       tickFormatter={v=>formatValue(Number(v))} tick={{fill:"var(--muted-foreground)",fontSize:10}} axisLine={false} tickLine={false}/>
   </>;
-  const tooltip = <Tooltip formatter={v=>[formatValue(v == null ? null : Number(v)),ui("Valor observado")]} contentStyle={biChartTooltipStyle}/>;
+  const tooltip = <Tooltip formatter={v=>[formatValue(v == null ? null : Number(v)),ui("Valor observado")]} {...biChartTooltipProps}/>;
 
   if (mode==="pie" || mode==="donut") {
     const slices=rows.filter(r=>r.value!==null && Number.isFinite(r.value) && r.value>0);
@@ -37,7 +37,7 @@ export function BiChartAlternative({mode, rows, unit, color, selectedId, onSelec
         <text x="50%" y="48%" textAnchor="middle" dominantBaseline="middle" fill="var(--foreground)" fontSize={23} fontWeight={800}>{formatValue(slices.reduce((n,r)=>n+(r.value??0),0))}</text>
         <text x="50%" y="59%" textAnchor="middle" dominantBaseline="middle" fill="var(--muted-foreground)" fontSize={11}>{slices.length} {ui("Categorias")}</text>
       </>}
-      <Tooltip formatter={(v,name)=>[formatValue(v == null ? null : Number(v)),String(name)]} contentStyle={biChartTooltipStyle}/></PieChart>
+      <Tooltip formatter={(v,name)=>[formatValue(v == null ? null : Number(v)),String(name)]} {...biChartTooltipProps}/></PieChart>
     </ResponsiveContainer>;
   }
   if(mode==="pareto"){
@@ -54,7 +54,7 @@ export function BiChartAlternative({mode, rows, unit, color, selectedId, onSelec
           tickFormatter={v=>`${v}%`} tick={{fill:"var(--muted-foreground)",fontSize:10}} axisLine={false} tickLine={false}/>
         <ReferenceLine yAxisId="share" y={80} stroke="#f59e0b" strokeDasharray="4 4"/>
         <Tooltip formatter={(v,name)=>[name===ui("Participação acumulada")
-          ? `${Number(v).toFixed(1)}%` : formatValue(Number(v)), String(name)]} contentStyle={biChartTooltipStyle}/>
+          ? `${Number(v).toFixed(1)}%` : formatValue(Number(v)), String(name)]} {...biChartTooltipProps}/>
         <Bar yAxisId="amount" dataKey="value" name={ui("Valor observado")} fill={"url(#" + gradientId + ")"} maxBarSize={42} radius={[7,7,0,0]} background={{fill:"var(--muted)",fillOpacity:0.22}}>
           {ordered.map(r=><Cell key={r.id} fill={"url(#" + gradientId + ")"} fillOpacity={selectedId && selectedId!==r.id ? .35 : 1} cursor="pointer"/>)}
         </Bar>
