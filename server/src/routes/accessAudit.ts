@@ -1,6 +1,6 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { appendAudit, actorFromPrincipal } from "../access/audit.js";
+import { appendAudit, actorFromPrincipal, redactAudit } from "../access/audit.js";
 import { AccessError, assertPermission } from "../access/policy.js";
 import { resolveSession, type AccessRequest } from "../access/sessions.js";
 
@@ -102,7 +102,8 @@ export function registerAccessAuditRoutes(
     await appendAudit(db, actorFromPrincipal(principal), {
       action: "audit.view", resourceType: "audit", after: { filters: Object.keys(req.query).sort() },
     });
-    return { rows, total, page: req.query.page ?? 0, pageSize: PAGE_SIZE };
+    return { rows: rows.map(row => ({ ...row, before: redactAudit(row.before),
+      after: redactAudit(row.after) })), total, page: req.query.page ?? 0, pageSize: PAGE_SIZE };
   });
 
   app.get<{ Querystring: AuditQuery }>("/api/access/audit-events/export", { schema: querySchema }, async (req, reply) => {
@@ -119,7 +120,9 @@ export function registerAccessAuditRoutes(
     });
     reply.header("Content-Disposition", 'attachment; filename="andon-auditoria.csv"');
     reply.header("X-Content-Type-Options", "nosniff");
-    return reply.type("text/csv; charset=utf-8").send(auditCsv(rows));
+    return reply.type("text/csv; charset=utf-8").send(auditCsv(rows.map(row => ({
+      ...row, before: redactAudit(row.before), after: redactAudit(row.after),
+    }))));
   });
 
   // Browser-generated metadata is non-authoritative. Only fixed page paths and
