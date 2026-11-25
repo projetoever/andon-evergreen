@@ -22,6 +22,7 @@ type BiChartExplorerProps = {
   color: string;
   orientation?: "vertical" | "horizontal";
   chartKind?: BiChartKind;
+  defaultMode?: BiChartMode;
   className?: string;
   caution: string;
   children?: ReactNode;
@@ -58,6 +59,7 @@ export function BiChartExplorer({
   color,
   orientation = "vertical",
   chartKind,
+  defaultMode = "bars",
   className = "",
   caution,
   children,
@@ -70,7 +72,7 @@ export function BiChartExplorer({
   const expandButtonRef = useRef<HTMLButtonElement>(null);
   const drilldownNavigationRef = useRef(false);
   const [view, setView] = useState<"chart" | "table">("chart");
-  const [chartMode, setChartMode] = useState<BiChartMode>("bars");
+  const [chartMode, setChartMode] = useState<BiChartMode>(defaultMode);
   const [ranked, setRanked] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
