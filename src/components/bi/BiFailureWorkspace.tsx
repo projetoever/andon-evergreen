@@ -52,7 +52,7 @@ export function BiFailureWorkspace({
   }));
 
   return (
-    <div className="flex min-w-0 flex-col gap-3 lg:h-full lg:min-h-0">
+    <div className="flex min-w-0 flex-col gap-3">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div className="text-xs font-black uppercase tracking-wide">
           {ui("Inteligência de falhas")}
@@ -116,8 +116,8 @@ export function BiFailureWorkspace({
           />
         </div>
       ) : (
-        <div className="grid min-w-0 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-2">
-          <section className="flex min-h-0 flex-col rounded-xl border border-border bg-card p-5 shadow-sm">
+        <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
+          <section className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
             <div className="shrink-0">
               <h2 className="text-sm font-black uppercase tracking-wide">
                 {ui("Pareto de classificações")}
@@ -135,12 +135,12 @@ export function BiFailureWorkspace({
             <div className="mt-3 min-w-0">
               <BiInlineDistributionChart
                 rows={classificationData.map(item=>({id:item.value,label:item.label,value:item.count}))}
-                unit="count" color="#f59e0b" height={245}
+                unit="count" color="#f59e0b" height={215}
                 onInspect={id=>{const item=classificationData.find(row=>row.value===id);if(item)onDrilldown({dimension:"classification",value:item.value,label:item.label});}} />
             </div>
-            <details className="mt-2 min-h-0 shrink-0">
-              <summary className="cursor-pointer text-xs font-bold text-muted-foreground hover:text-foreground">{ui("Ver classificações detalhadas")}</summary>
-            <div className="mt-2 max-h-44 space-y-2 overflow-y-auto">
+            <details className="mt-3 min-w-0 rounded-lg border border-border/80 bg-background/30 p-3 open:pb-4">
+              <summary className="cursor-pointer py-1 text-sm font-semibold text-foreground hover:text-primary">{ui("Ver classificações detalhadas")}</summary>
+            <div className="mt-3 max-h-[300px] space-y-2 overflow-y-auto pr-1">
               {classificationData.length ? (
                 classificationData.map((item, index) => {
                   const max = classificationData[0]?.count || 1;
@@ -156,10 +156,10 @@ export function BiFailureWorkspace({
                           label: item.label,
                         })
                       }
-                      className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-lg border border-transparent p-2 text-left transition hover:border-amber-500/30 hover:bg-amber-500/[0.04]"
+                      className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-lg border border-transparent p-3 text-left transition hover:border-amber-500/30 hover:bg-amber-500/[0.04]"
                     >
                       <div>
-                        <div className="mb-1 flex items-center gap-2 text-xs">
+                        <div className="mb-2 flex items-center gap-2 text-sm">
                           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/15 text-[9px] font-black text-amber-300">
                             {index + 1}
                           </span>
@@ -205,12 +205,12 @@ export function BiFailureWorkspace({
             <div className="mt-3 min-w-0">
               <BiInlineDistributionChart
                 rows={sectorData.map(item=>({id:item.value,label:item.label,value:item.count}))}
-                unit="count" color="#38bdf8" height={245}
+                unit="count" color="#38bdf8" height={215}
                 onInspect={id=>{const item=sectorData.find(row=>row.value===id);if(item)onDrilldown({dimension:"sector",value:item.value,label:item.label});}} />
             </div>
-            <details className="mt-2 shrink-0">
-              <summary className="cursor-pointer text-xs font-bold text-muted-foreground hover:text-foreground">{ui("Ver setores detalhados")}</summary>
-            <div className="mt-2 grid max-h-44 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+            <details className="mt-3 min-w-0 rounded-lg border border-border/80 bg-background/30 p-3 open:pb-4">
+              <summary className="cursor-pointer py-1 text-sm font-semibold text-foreground hover:text-primary">{ui("Ver setores detalhados")}</summary>
+            <div className="mt-3 grid max-h-[300px] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
               {sectorData.length ? (
                 sectorData.map((item) => (
                   <button
@@ -239,7 +239,7 @@ export function BiFailureWorkspace({
             </details>
 
             <div className="mt-3 shrink-0 rounded-lg border border-sky-500/20 bg-sky-500/[0.04] p-3">
-              <p className="text-[10px] leading-4 text-muted-foreground">
+              <p className="text-xs leading-5 text-muted-foreground">
                 {ui(
                   "Classificações representam diagnósticos de chamados concluídos; demanda por setor considera aberturas. Para repetição de diagnóstico, use a aba Reincidências.",
                 )}
