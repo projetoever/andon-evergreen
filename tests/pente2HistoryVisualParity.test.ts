@@ -37,7 +37,8 @@ test("PENTE 2 visual: collapsible filters apply only to visible rows without dro
   assert.match(priority, /visibleRows\.length === 0 \? \(/);
   assert.match(priority, /rows\.length === 0 \? ui/);
   assert.match(priority, /reorderVisiblePriorityIds/);
-  assert.match(priority, /saveDashboardPriorityOrder\(rows\.map\(\(row\) => row\.id\), savedIds\)/);
+  assert.match(priority, /saveDashboardPriorityOrder\(\s*rows\.map\(\(row\) => row\.id\), savedIds,/);
+  assert.match(priority, /priorityHighlightCount !== savedHighlightCount/);
   assert.match(priority, /hasUnsavedChanges/);
   assert.match(priority, /window\.confirm\(ui\("Descartar as alterações de prioridade ainda não salvas\?"\)\)/);
 });
