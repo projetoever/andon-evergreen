@@ -80,9 +80,9 @@ export function BiSampleDiagnosticsPanel({
             0: c.nonCorrectiveFinished, 1: c.closedPendingPhysicalEpisodes, 2: c.scheduledPendingEpisodes,
           })}
         </p>
-        <div className="max-h-48 overflow-auto rounded-lg border border-border bg-background/30">
-          <table className="w-full min-w-[640px] text-left text-[11px]">
-            <thead className="sticky top-0 bg-card text-muted-foreground">
+        <div className="max-h-72 overflow-auto rounded-lg border border-border bg-background/30">
+          <table className="w-full min-w-[720px] text-left text-xs">
+            <thead className="sticky top-0 z-10 bg-card text-muted-foreground">
               <tr>
                 <th className="px-2 py-2">{ui("Chamado")}</th>
                 <th className="px-2 py-2">{ui("Máquina")}</th>
@@ -97,7 +97,7 @@ export function BiSampleDiagnosticsPanel({
                   <td className="px-2 py-2 font-mono">{item.callIdSuffix}</td>
                   <td className="px-2 py-2">
                     {item.machineId}
-                    <span className="block max-w-[13rem] text-[10px] text-muted-foreground">
+                    <span className="block max-w-[14rem] text-[11px] text-muted-foreground">
                       {ui(SCHEDULE_LABELS[item.scheduleCoverage])}
                     </span>
                   </td>
