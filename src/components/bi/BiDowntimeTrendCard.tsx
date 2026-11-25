@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { getInterfaceLocale, ui } from "@/i18n/translate";
-import { biChartGradientId, biChartGridColor, biChartTooltipStyle } from "@/components/bi/biChartVisualTheme";
+import { biChartGradientId, biChartGridColor, biChartTooltipProps } from "@/components/bi/biChartVisualTheme";
 import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -86,7 +86,7 @@ export function BiDowntimeTrendCard({
               <Tooltip
                 labelFormatter={(value) => formatDateLabel(String(value))}
                 formatter={(value) => [formatMinutes(Number(value)), ui("Parada no dia")]}
-                contentStyle={biChartTooltipStyle}
+                {...biChartTooltipProps}
               />
               <Bar
                 name={ui("Parada no dia")}
