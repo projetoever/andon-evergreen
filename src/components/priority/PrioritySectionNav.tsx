@@ -1,16 +1,15 @@
 import { useState } from "react";
-import { BookOpen, CalendarDays, ClipboardList, LayoutDashboard, ListOrdered, Menu } from "lucide-react";
+import { BookOpen, ClipboardList, LayoutDashboard, ListOrdered, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ui } from "@/i18n/translate";
 import { cn } from "@/lib/utils";
 
-export type PrioritySectionId = "overview" | "sequence" | "production" | "history" | "help";
+export type PrioritySectionId = "overview" | "sequence" | "history" | "help";
 
 const sections = [
   { id: "overview", label: "Visão Geral", Icon: LayoutDashboard },
-  { id: "sequence", label: "Sequência de Prioridades", Icon: ListOrdered },
-  { id: "production", label: "Produção Programada", Icon: CalendarDays },
+  { id: "sequence", label: "Sequência e Programação", Icon: ListOrdered },
   { id: "history", label: "Histórico e Auditoria", Icon: ClipboardList },
   { id: "help", label: "Ajuda e Orientações", Icon: BookOpen },
 ] as const;
