@@ -174,5 +174,20 @@ export const visualMessages: ReadonlyArray<readonly [string,string,string]> = [
 ["Corretivo pendente","Pending corrective responsibility","矯正維修責任待確認"],
 ["Corretivo de outra área","Corrective assigned elsewhere","歸屬其他部門的矯正呼叫"],
 ["Não corretivo","Non-corrective","非矯正類"],
-["Distribuição dos chamados finalizados. A elegibilidade não substitui a prova física e a programação do MTTR/MTBF.","Distribution of finished calls. Eligibility does not replace physical evidence or the MTTR/MTBF schedule requirements.","已結案呼叫的分布。資格不代表具備實際停機證據或 MTTR／MTBF 排程要求。"]
+["Distribuição dos chamados finalizados. A elegibilidade não substitui a prova física e a programação do MTTR/MTBF.","Distribution of finished calls. Eligibility does not replace physical evidence or the MTTR/MTBF schedule requirements.","已結案呼叫的分布。資格不代表具備實際停機證據或 MTTR／MTBF 排程要求。"],
+["Gráfico comparativo com escala e valores inspecionáveis","Comparative chart with axes and inspectable values","有刻度和可檢視數值的比較圖"],
+["Pareto: curva acumulada e referência de 80% do total exibido.","Pareto: cumulative curve and an 80% reference for the displayed total.","柏拉圖：顯示總量的累積曲線及 80% 參考線。"],
+["Escala em horas por pessoa","Scale: hours per person","刻度：每人小時數"],
+["Escala em horas técnicas","Scale: technical hours","刻度：技術工時"],
+["Comparativo empilhado de tempo de manutenção e acompanhamento por técnico ou área","Stacked comparison of maintenance and follow-up time by technician or area","依技術人員或部門堆疊比較維修及追蹤時間"],
+["Horas técnicas são somadas por pessoa e podem ser simultâneas. Não representam horas de máquina parada.","Technical hours sum per person and can overlap. They do not represent machine downtime.","技術工時按個人加總，可能同時發生；不代表設備停機時數。"],
+["Exibindo as oito maiores participações. A tabela contém todos os registros.","Showing the top eight contributions. The table contains all records.","僅顯示前八項，表格含所有紀錄。"],
+["Atenção: {0} de {1} horas técnicas ({2}%) estão com responsabilidade pendente. Revise diagnósticos antes de atribuir os tempos à manutenção.","Warning: {0} of {1} technical hours ({2}%) have pending responsibility. Review diagnoses before attributing time to maintenance.","注意：技術工時 {1} 中有 {0}（{2}%）責任未確認。歸入維修前請複核診斷。"],
+["Ver classificações detalhadas","View detailed classifications","查看詳細分類"],
+["Ver setores detalhados","View department details","查看部門詳情"],
+["Compare as horas físicas de parada e identifique a contribuição acumulada das máquinas.","Compare physical downtime hours and identify machines' cumulative contribution.","比較實際停機時數並辨識各設備的累積貢獻。"],
+["Situação atual dos alertas","Current alerts status","目前警示狀態"],
+["Alertas com referência ao estado atual. As categorias podem se sobrepor.","Alerts reflecting current state. Categories may overlap.","警示反映目前狀態，各分類可能重疊。"],
+["Alertas no período selecionado","Alerts in selected period","所選期間的警示"],
+["Classificações ausentes e eventos sem chamado não representam uma composição aditiva.","Missing classifications and unlinked events are not an additive composition.","缺少分類與未關聯事件不能直接相加為同一組成。"]
 ];

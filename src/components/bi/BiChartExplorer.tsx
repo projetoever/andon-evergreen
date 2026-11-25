@@ -22,6 +22,7 @@ type BiChartExplorerProps = {
   color: string;
   orientation?: "vertical" | "horizontal";
   chartKind?: BiChartKind;
+  defaultMode?: BiChartMode;
   className?: string;
   caution: string;
   children?: ReactNode;
@@ -58,6 +59,7 @@ export function BiChartExplorer({
   color,
   orientation = "vertical",
   chartKind,
+  defaultMode = "bars",
   className = "",
   caution,
   children,
@@ -70,7 +72,7 @@ export function BiChartExplorer({
   const expandButtonRef = useRef<HTMLButtonElement>(null);
   const drilldownNavigationRef = useRef(false);
   const [view, setView] = useState<"chart" | "table">("chart");
-  const [chartMode, setChartMode] = useState<BiChartMode>("bars");
+  const [chartMode, setChartMode] = useState<BiChartMode>(defaultMode);
   const [ranked, setRanked] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -132,7 +134,16 @@ export function BiChartExplorer({
           className={`inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className}`}>
           <Maximize2 className="h-3.5 w-3.5" aria-hidden="true"/> {ui("Explorar gráficos")}
         </button>
-      ) : (<div className={`relative min-w-0 ${className}`}>
+      ) : (<div className={`relative flex min-h-0 min-w-0 flex-col ${className}`}>
+        {chartModes.length > 1 && (
+          <div className="mb-1 flex shrink-0 flex-wrap items-center gap-1 rounded-md bg-muted/20 px-1 py-0.5" role="group" aria-label={ui("Tipo de gráfico")}>
+            {chartModes.map(mode => <button type="button" key={mode} aria-pressed={activeMode===mode}
+              className={`rounded px-2 py-1 text-[10px] font-semibold transition ${activeMode===mode?"bg-primary/15 text-foreground":"text-muted-foreground hover:bg-muted"}`}
+              onClick={()=>{setChartMode(mode);setSelectedId(null);}}>
+              {ui(({bars:"Barras",line:"Linha",area:"Área",donut:"Rosca",pie:"Disco",pareto:"Pareto"} as const)[mode])}
+            </button>)}
+          </div>
+        )}
         <div
           role="button"
           tabIndex={0}
@@ -145,9 +156,12 @@ export function BiChartExplorer({
               openExplorer();
             }
           }}
-          className="h-full min-w-0 cursor-zoom-in rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="min-h-0 min-w-0 flex-1 cursor-zoom-in rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          {children}
+          {activeMode !== "bars" ? (
+            <BiChartAlternative mode={activeMode} rows={displayRows} unit={unit} color={color}
+              selectedId={selectedId} onSelect={setSelectedId} formatValue={value=>formatValue(value,unit)}/>
+          ) : children}
         </div>
         <button
           type="button"
@@ -155,7 +169,7 @@ export function BiChartExplorer({
           aria-label={ui("Ampliar análise do gráfico: {0}", { 0: title })}
           title={ui("Abrir análise ampliada")}
           onClick={openExplorer}
-          className="absolute right-1 top-1 z-10 rounded-md border border-border bg-background/95 p-1.5 shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={`absolute right-1 ${chartModes.length>1?"top-9":"top-1"} z-10 rounded-md border border-border bg-background/95 p-1.5 shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
         >
           <Maximize2 aria-hidden="true" className="h-4 w-4" />
         </button>

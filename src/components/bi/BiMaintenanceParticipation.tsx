@@ -3,6 +3,7 @@ import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useRef, useState } from "react";
 import { Activity, ChevronLeft, ChevronRight, CircleDot, Users, Wrench } from "lucide-react";
 import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
+import { BiMaintenanceStackedChart } from "@/components/bi/BiMaintenanceStackedChart";
 
 import type { AnalyticsMaintenanceParticipation } from "@/types/analytics";
 
@@ -136,6 +137,8 @@ export function BiMaintenanceParticipation({
   const { viewportRef: areaViewport, visibleRows: areaRows } = useVisibleRows(63, Boolean(data));
   const [technicianPage, setTechnicianPage] = useState(0);
   const [areaPage, setAreaPage] = useState(0);
+  const [technicianView, setTechnicianView] = useState<"chart" | "table">("chart");
+  const [areaView, setAreaView] = useState<"chart" | "table">("chart");
 
   useEffect(() => {
     setTechnicianPage(0);
@@ -144,7 +147,7 @@ export function BiMaintenanceParticipation({
 
   if (loading && !data) {
     return (
-      <section className="flex min-w-0 flex-col rounded-xl lg:h-full lg:min-h-0 border border-border bg-card p-3 shadow-sm">
+      <section className="flex min-w-0 flex-col rounded-xl lg:h-full lg:min-h-0 lg:overflow-y-auto border border-border bg-card p-3 shadow-sm">
         <div className="h-full animate-pulse rounded-lg bg-muted/40" />
       </section>
     );
@@ -162,6 +165,8 @@ export function BiMaintenanceParticipation({
   if (!data) return null;
 
   const maxMinutes = data.technicians[0]?.totalPersonMinutes || 1;
+  const pendingPersonMinutes = data.responsibility?.filter(row => row.responsibility === "unassigned").reduce((sum,row)=>sum + row.personMinutes,0) ?? 0;
+  const pendingPercent = data.totals.totalPersonMinutes > 0 ? Math.round(100 * pendingPersonMinutes / data.totals.totalPersonMinutes) : 0;
   const technicianPages = Math.max(1, Math.ceil(data.technicians.length / technicianRows));
   const areaPages = Math.max(1, Math.ceil(data.technicalAreas.length / areaRows));
   const safeTechnicianPage = Math.min(technicianPage, technicianPages - 1);
@@ -218,6 +223,9 @@ export function BiMaintenanceParticipation({
           {formatMinutes(data.totals.overlapMinutesRemoved ?? 0)}.
         </p>
       )}
+      {pendingPercent >= 40 && <div role="status" className="mt-2 shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-200">
+        {ui("Atenção: {0} de {1} horas técnicas ({2}%) estão com responsabilidade pendente. Revise diagnósticos antes de atribuir os tempos à manutenção.",{0:formatMinutes(pendingPersonMinutes),1:formatMinutes(data.totals.totalPersonMinutes),2:pendingPercent})}
+      </div>}
       <div className="mt-2 grid shrink-0 grid-cols-2 gap-2 lg:grid-cols-4">
         <div className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] px-3 py-2">
           <div className="flex items-center justify-between text-sky-300">
@@ -280,11 +288,19 @@ export function BiMaintenanceParticipation({
             <h3 className="text-xs font-black uppercase tracking-wide">
               {ui("Distribuição por mantenedor")}
             </h3>
-            <span className="text-[11px] text-muted-foreground">
-              {ui("Ordenado por horas técnicas")}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] text-muted-foreground">{ui("Ordenado por horas técnicas")}</span>
+              <div className="flex rounded-md border border-border p-0.5 text-[11px]">
+                {(["chart","table"] as const).map(v=><button type="button" key={v} aria-pressed={technicianView===v} onClick={()=>setTechnicianView(v)} className={`rounded px-2 py-1 ${technicianView===v?"bg-primary/15 text-foreground":"text-muted-foreground"}`}>{v==="chart"?ui("Gráfico"):ui("Tabela de dados")}</button>)}
+              </div>
+            </div>
           </div>
 
+          {technicianView === "chart" ? (
+            <div className="mt-2 min-h-0 flex-1 overflow-auto">
+              <BiMaintenanceStackedChart height={250} rows={data.technicians.map(row=>({id:row.technicianId??row.technicianName,label:row.technicianName,maintenanceMinutes:row.maintenanceMinutes,followUpMinutes:row.followUpMinutes,totalPersonMinutes:row.totalPersonMinutes}))} />
+            </div>
+          ) : (<>
           <div ref={technicianViewport} className="mt-1 h-64 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
             {technicians.length ? (
               technicians.map((technician) => (
@@ -340,13 +356,22 @@ export function BiMaintenanceParticipation({
             total={data.technicians.length}
             onChange={setTechnicianPage}
           />
+          </>)}
         </div>
 
         <div className="flex min-h-0 flex-col gap-2">
           <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-background/25 p-3">
-            <h3 className="shrink-0 text-xs font-black uppercase tracking-wide">
-              {ui("Áreas técnicas")}
-            </h3>
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+              <h3 className="text-xs font-black uppercase tracking-wide">{ui("Áreas técnicas")}</h3>
+              <div className="flex rounded-md border border-border p-0.5 text-[11px]">
+                {(["chart","table"] as const).map(v=><button type="button" key={v} aria-pressed={areaView===v} onClick={()=>setAreaView(v)} className={`rounded px-2 py-1 ${areaView===v?"bg-primary/15 text-foreground":"text-muted-foreground"}`}>{v==="chart"?ui("Gráfico"):ui("Tabela de dados")}</button>)}
+              </div>
+            </div>
+            {areaView === "chart" ? (
+              <div className="mt-2 min-h-0 flex-1 overflow-auto">
+                <BiMaintenanceStackedChart height={235} rows={data.technicalAreas.map(row=>({id:row.technicalArea??"unknown",label:row.technicalArea?(areaLabels.get(row.technicalArea)??row.technicalArea):ui("Sem área registrada"),maintenanceMinutes:row.maintenanceMinutes,followUpMinutes:row.followUpMinutes,totalPersonMinutes:row.totalPersonMinutes}))}/>
+              </div>
+            ) : (<>
             <div ref={areaViewport} className="mt-1 h-52 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
               {areas.length ? (
                 areas.map((area) => (
@@ -389,6 +414,7 @@ export function BiMaintenanceParticipation({
               total={data.technicalAreas.length}
               onChange={setAreaPage}
             />
+            </>)}
           </div>
 
           <div

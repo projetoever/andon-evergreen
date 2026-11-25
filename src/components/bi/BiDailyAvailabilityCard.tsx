@@ -42,6 +42,7 @@ export function BiDailyAvailabilityCard({
             description={ui("Tempo programado sem paradas registradas · percentual")}
             unit="percent"
             chartKind="temporal"
+            defaultMode="line"
             color="#10b981"
             caution={ui("Dias sem programação não são zero por cento. Compare somente dias com histórico verificável; a média simples não substitui o KPI consolidado.")}
             rows={data!.daily.map((day) => ({

@@ -2,6 +2,7 @@ import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { RotateCcw, ShieldAlert } from "lucide-react";
 import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
+import { BiInlineDistributionChart } from "@/components/bi/BiInlineDistributionChart";
 
 import type { AnalyticsAssetReliability } from "@/types/analytics";
 
@@ -98,7 +99,14 @@ export function BiBadActorsPanel({
         </div>
       </div>
 
-      <div className="mt-3 min-h-0 min-w-0 flex-1 overflow-auto lg:overflow-hidden rounded-lg border border-border bg-background/25">
+      <div className="mt-3 shrink-0 rounded-lg border border-red-500/20 bg-background/30 p-2">
+        <p className="px-1 pb-2 text-[11px] text-muted-foreground">{ui("Compare as horas físicas de parada e identifique a contribuição acumulada das máquinas.")}</p>
+        <BiInlineDistributionChart
+          rows={assets.map(asset=>({id:asset.machineId,label:asset.machineName,value:asset.downtimeMinutes}))}
+          unit="minutes" color="#ef4444" height={205}
+          onInspect={id=>{const asset=assets.find(row=>row.machineId===id);if(asset)onSelectMachine(asset.machineId,asset.machineName);}} />
+      </div>
+      <div className="mt-3 min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border bg-background/25">
         <table className="w-full min-w-[48rem] lg:min-w-0 table-fixed text-left text-xs">
           <thead className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
             <tr>
