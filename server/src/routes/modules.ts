@@ -104,6 +104,15 @@ export async function registerModuleRoutes(app: FastifyInstance) {
       // (andon.read + history.read + history.global.read) and valid workstation.
       // Client checkbox never replaces server-side machine scope.
       globalHistory: globalHistoryModuleAccess(principal, workstation),
+      audit: {
+        read: Boolean(central && workstation.active && !workstation.pendingApproval &&
+          principal?.purpose === "normal" &&
+          (principal.isPrimaryAdmin || principal.permissions.includes("audit.read"))),
+        export: Boolean(central && workstation.active && !workstation.pendingApproval &&
+          principal?.purpose === "normal" &&
+          (principal.isPrimaryAdmin || (principal.permissions.includes("audit.read") &&
+            principal.permissions.includes("audit.export")))),
+      },
       prioritiesWriteEnabled: Boolean(central && centralPriorityHttpEnabled() &&
         principal?.purpose === "normal" && permitted(MODULE_REGISTRY[2]) &&
         (() => {
