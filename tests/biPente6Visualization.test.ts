@@ -29,3 +29,19 @@ test("PENTE6: modos não criam novos pedidos à API e mantêm CSV e drilldown",(
   assert.match(coverage,/machineCoverage/);
   assert.doesNotMatch(chart,/fetch\(|axios\(|loadAnalyticsDrilldown\(/);
 });
+
+test("PENTE6: explorador reutilizado nas cinco abas sem mudar endpoints",()=>{
+  const sources=[
+    "../src/components/bi/BiOverviewWorkspace.tsx",
+    "../src/components/bi/BiFailureWorkspace.tsx",
+    "../src/components/bi/BiBadActorsPanel.tsx",
+    "../src/components/bi/BiMaintenanceParticipation.tsx",
+    "../src/components/bi/BiSampleDiagnosticsPanel.tsx",
+  ];
+  for(const path of sources){
+    const text=read(path);
+    assert.match(text,/BiChartExplorer/,path);
+  }
+  assert.match(read("../src/components/bi/BiChartExplorer.tsx"),/launcher \? \(/);
+  assert.match(read("../src/i18n/translate.ts"),/visualMessages/);
+});

@@ -1,6 +1,7 @@
 import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { RotateCcw, ShieldAlert } from "lucide-react";
+import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 
 import type { AnalyticsAssetReliability } from "@/types/analytics";
 
@@ -83,10 +84,18 @@ export function BiBadActorsPanel({
             {ui(" · top 8.")}
           </p>
         </div>
-        <span className="text-[11px] text-muted-foreground">
-          {eligibleAssets.length}
-          {ui(" ativo(s) · clique para Machine 360")}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-muted-foreground">
+            {eligibleAssets.length}{ui(" ativo(s) · clique para Machine 360")}
+          </span>
+          <BiChartExplorer launcher
+            title={ui("Máquinas críticas · Bad Actors")}
+            description={ui("Ranking de minutos de parada física nas máquinas exibidas")}
+            chartKind="categorical" orientation="horizontal" unit="minutes" color="#ef4444"
+            rows={assets.map(asset=>({id:asset.machineId,label:asset.machineName,value:asset.downtimeMinutes,details:[{label:ui("Episódios"),value:String(asset.physicalStopEpisodes)}]}))}
+            allowRank caution={ui("Exibe apenas as máquinas listadas neste ranking. Minutos de parada são observações físicas; classificação ou atividade não equivalem a causalidade.")}
+            onInspectRow={row=>{const asset=assets.find(a=>a.machineId===row.id);if(asset)onSelectMachine(asset.machineId,asset.machineName);}} />
+        </div>
       </div>
 
       <div className="mt-3 min-h-0 min-w-0 flex-1 overflow-auto lg:overflow-hidden rounded-lg border border-border bg-background/25">

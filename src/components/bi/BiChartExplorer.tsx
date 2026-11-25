@@ -24,7 +24,8 @@ type BiChartExplorerProps = {
   chartKind?: BiChartKind;
   className?: string;
   caution: string;
-  children: ReactNode;
+  children?: ReactNode;
+  launcher?: boolean;
   allowRank?: boolean;
   onInspectRow?: (row: BiChartRow) => void;
 };
@@ -60,6 +61,7 @@ export function BiChartExplorer({
   className = "",
   caution,
   children,
+  launcher = false,
   allowRank = false,
   onInspectRow,
 }: BiChartExplorerProps) {
@@ -72,7 +74,7 @@ export function BiChartExplorer({
   const [ranked, setRanked] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const kind = chartKind ?? (orientation === "horizontal" ? "categorical" : "distribution");
+  const kind = chartKind ?? (orientation === "horizontal" ? "categorical" : "temporal");
   const chartModes = useMemo(() => availableBiChartModes(rows, unit, kind), [rows, unit, kind]);
   const activeMode = chartModes.includes(chartMode) ? chartMode : "bars";
   const displayRows = useMemo(
@@ -124,7 +126,13 @@ export function BiChartExplorer({
 
   return (
     <>
-      <div className={`relative min-w-0 ${className}`}>
+      {launcher ? (
+        <button type="button" ref={expandButtonRef} onClick={openExplorer}
+          aria-haspopup="dialog" aria-label={ui("Ampliar análise do gráfico: {0}",{0:title})}
+          className={`inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className}`}>
+          <Maximize2 className="h-3.5 w-3.5" aria-hidden="true"/> {ui("Explorar gráficos")}
+        </button>
+      ) : (<div className={`relative min-w-0 ${className}`}>
         <div
           role="button"
           tabIndex={0}
@@ -151,7 +159,7 @@ export function BiChartExplorer({
         >
           <Maximize2 aria-hidden="true" className="h-4 w-4" />
         </button>
-      </div>
+      </div>)}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent

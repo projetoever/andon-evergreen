@@ -2,6 +2,7 @@ import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useRef, useState } from "react";
 import { Activity, ChevronLeft, ChevronRight, CircleDot, Users, Wrench } from "lucide-react";
+import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 
 import type { AnalyticsMaintenanceParticipation } from "@/types/analytics";
 
@@ -187,7 +188,12 @@ export function BiMaintenanceParticipation({
             )}
           </p>
         </div>
-        <div className="flex shrink-0 gap-3 text-[11px] font-semibold text-muted-foreground">
+        <div className="flex shrink-0 flex-wrap items-center gap-3 text-[11px] font-semibold text-muted-foreground">
+          <BiChartExplorer launcher title={ui("Participação técnica")}
+            description={ui("Tempo de trabalho por técnico, com sobreposições da própria pessoa removidas")}
+            chartKind="categorical" orientation="horizontal" unit="minutes" color="#38bdf8"
+            rows={data.technicians.map(tech=>({id:tech.technicianId??tech.technicianName,label:tech.technicianName,value:tech.totalPersonMinutes,details:[{label:ui("Chamados"),value:String(tech.callCount)}]}))}
+            allowRank caution={ui("Horas técnicas são somas por pessoa e podem ocorrer simultaneamente. Não equivalem ao tempo físico de máquina parada.")} />
           <span className="inline-flex items-center gap-1">
             <span className="h-2 w-2 rounded-full bg-sky-400" />
             {ui(" Manutenção")}
