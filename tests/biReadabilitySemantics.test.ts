@@ -48,7 +48,8 @@ test("BI explicita que MTBF é estimativa e esforço técnico soma pessoas", asy
     /Soma de horas por técnico, inclusive simultâneas entre pessoas diferentes/,
   );
   assert.match(actors, /Máquinas críticas · Bad Actors/);
-  assert.match(actors, /table-fixed text-left text-xs/);
+  assert.match(actors, /table-fixed text-left text-\[13px\]/);
+  assert.match(actors, /min-h-\[242px\] max-h-\[360px\]/);
   assert.match(quality, /Qualidade dos dados · Investigação/);
 });
 
