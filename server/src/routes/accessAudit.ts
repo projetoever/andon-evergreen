@@ -71,10 +71,12 @@ export function auditCsvCell(value: unknown): string {
   const safe = /^[=+\-@\t\r\n]/.test(str) ? "'" + str : str;
   return '"' + safe.replace(/"/g, '""') + '"';
 }
-export function auditCsv(rows: ReadonlyArray<Record<string, unknown>>) {
+export function auditCsv(rows: ReadonlyArray<object>) {
   const lines = [csvColumns.join(";")];
-  for (const row of rows)
+  for (const item of rows) {
+    const row = item as Record<string, unknown>;
     lines.push(csvColumns.map(key => auditCsvCell(row[key])).join(";"));
+  }
   return "\ufeff" + lines.join("\r\n") + "\r\n";
 }
 
