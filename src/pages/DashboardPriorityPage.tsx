@@ -26,6 +26,7 @@ import { ProductionModeCredentialModal } from "@/components/machines/ProductionM
 import { accessRequest, type AccessState } from "@/services/accessService";
 import { PrioritySectionNav, type PrioritySectionId } from "@/components/priority/PrioritySectionNav";
 import { PriorityActivationBadge, PriorityProductionBadge } from "@/components/priority/PriorityMachineBadges";
+import { PriorityOverviewPanel } from "@/components/priority/PriorityOverviewPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { reorderVisiblePriorityIds } from "@/utils/priorityFilteredOrder";
@@ -763,53 +764,16 @@ export function DashboardPriorityPage() {
             )}
 
             {activeSection === "overview" && (
-              <section className="space-y-4" aria-label={ui("Visão Geral")}>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <p className="text-sm text-muted-foreground">{ui("Máquinas na sequência")}</p>
-                    <p className="mt-2 text-3xl font-black tabular-nums">{isLoading || loadingError ? "—" : rows.length}</p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <p className="text-sm text-muted-foreground">{ui("Máquinas ativas")}</p>
-                    <p className="mt-2 text-3xl font-black tabular-nums">
-                      {isLoading || loadingError ? "—" : rows.filter((machine) => machine.isActive).length}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <p className="text-sm text-muted-foreground">{ui("Máquinas inativas")}</p>
-                    <p className="mt-2 text-3xl font-black tabular-nums">
-                      {isLoading || loadingError ? "—" : rows.filter((machine) => !machine.isActive).length}
-                    </p>
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border bg-card p-4">
-                  <h2 className="mb-3 text-base font-bold">{ui("Cinco primeiras máquinas ativas")}</h2>
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    {ui("O destaque P1–P5 é determinado pela ordem das máquinas ativas, não pela programação de produção.")}
-                  </p>
-                  {isLoading ? (
-                    <p role="status">{ui("Carregando sequência...")}</p>
-                  ) : loadingError ? (
-                    <p role="alert" className="text-danger">{loadingError}</p>
-                  ) : (
-                    <ol className="space-y-2">
-                      {rows.filter((machine) => machine.isActive).slice(0, 5).map((machine) => (
-                        <li key={machine.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3 text-sm">
-                          <span className="font-bold text-primary">P{activePriorityRanks.get(machine.id)}</span>
-                          <span className="min-w-0 flex-1 font-semibold">{machine.name}</span>
-                          <span className="font-mono text-xs text-muted-foreground">ID {machine.id}</span>
-                        </li>
-                      ))}
-                      {!rows.some((machine) => machine.isActive) && (
-                        <li className="text-sm text-muted-foreground">{ui("Nenhuma máquina ativa na sequência.")}</li>
-                      )}
-                    </ol>
-                  )}
-                </div>
-                <Button type="button" variant="outline" onClick={() => setActiveSection("sequence")}>
-                  {ui("Abrir sequência de prioridades")}
-                </Button>
-              </section>
+              <PriorityOverviewPanel
+                machines={rows}
+                configuredHighlightCount={priorityHighlightCount}
+                globalRankVisible={canShowGlobalRanks}
+                loading={isLoading}
+                error={loadingError}
+                lastOrderUpdatedAt={lastOrderUpdatedAt}
+                lastOrderUpdatedBy={lastOrderUpdatedBy}
+                onSectionChange={setActiveSection}
+              />
             )}
 
             {activeSection === "production" && (
