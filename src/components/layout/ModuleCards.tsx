@@ -78,6 +78,7 @@ export function ModuleCards({
           <Link
             key={module.id}
             to={module.route}
+            data-audit-action={`hub.open.${module.id}`}
             onClick={(event) => {
               if (onNavigate && !onNavigate(module)) event.preventDefault();
             }}
@@ -97,7 +98,7 @@ export function ModuleCards({
         );
       })}
       {showHistory && (historyAllowed ? (
-        <Link to="/history" className="block min-w-0 rounded-xl border border-border bg-card p-6 text-left shadow-sm transition hover:border-primary/60 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <Link to="/history" data-audit-action="hub.open.history" className="block min-w-0 rounded-xl border border-border bg-card p-6 text-left shadow-sm transition hover:border-primary/60 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <div className="flex items-center justify-between gap-3">
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary"><History className="h-6 w-6" aria-hidden="true" /></span>
             <ArrowUpRight className="h-5 w-5 text-primary" aria-hidden="true" />
