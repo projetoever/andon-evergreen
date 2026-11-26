@@ -32,7 +32,11 @@ A biblioteca [`entregavel/`](entregavel/README.md) contém governança, notas de
 
 **Estado:** o dossiê M1 e os manuais atuais são material de pré-entrega; não comprovaram testes físicos em notebook, browsers reais, dispositivo móvel ou instalação industrial. CI de uma PR é prova de automação, não homologação de produto.
 
-## 4. Relatórios e histórico
+## 4. Preparação de homologação e transição para entrega
+
+A Fase 4 reúne o [runbook de HML](entregavel/30_RUNBOOK_HML_EVIDENCIAS.md), a [matriz de capturas e treinamento](entregavel/31_PLANO_CAPTURAS_E_TREINAMENTO.md) e o [checklist de transferência e release](entregavel/32_CHECKLIST_TRANSFERENCIA_E_RELEASE.md). Os **28 casos** continuam dependentes de ambiente autorizado e provas de execução; a documentação não instala software ou autoriza liberação de produto.
+
+## 5. Relatórios e histórico
 
 - [Registros anteriores e política de preservação](ARQUIVO_HISTORICO.md): índices REFINE, SEC04, PENTE, MOB, UX e outros registros cronológicos.
 - [Roadmap](ROADMAP.md) e [plano do entregável](DOC1_PLANO_ENTREGAVEL_20261125.md).
