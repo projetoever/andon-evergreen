@@ -27,12 +27,12 @@ stateDiagram-v2
     in_progress --> post_maintenance: finish-maintenance
     post_maintenance --> in_progress: return-to-maintenance
     post_maintenance --> finished: finish
-    in_progress --> finished: finish quando permitido
+    in_progress --> finished: finish para produção ou exceções de teste válidas
     cancelled --> [*]
     finished --> [*]
 ```
 
-O diagrama é a **visão de fluxo funcional**. Não pressupõe que todos os perfis possam finalizar diretamente de qualquer estado. Verificações de terminal de atendimento, descrição de falha, identidade, natureza do motivo e momento de parada podem restringir as transições. O cancelamento em outras fases, caso suportado pelo handler, deve ser homologado especificamente antes de constar no manual.
+O diagrama é a **visão de fluxo funcional**. Chamados reais de **manutenção** devem passar por `post_maintenance` antes de `finish`; os reais de **produção** exigem `in_progress` para finalizar. Chamados de teste seguem guardas próprias. Não pressupor que todos os perfis possam finalizar diretamente de qualquer estado. Verificações de terminal de atendimento, descrição de falha, identidade, natureza do motivo e momento de parada podem restringir as transições. O cancelamento em outras fases, caso suportado pelo handler, deve ser homologado especificamente antes de constar no manual.
 
 ### Valores verificados
 
