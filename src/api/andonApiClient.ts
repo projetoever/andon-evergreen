@@ -96,6 +96,9 @@ export function createAndonApiClient(
       (method === "PATCH" && /^\/api\/andon-calls\/[^/]+\/failure-details$/.test(path)) ||
       (method === "POST" && /^\/api\/andon-calls\/[^/]+\/technicians$/.test(path)) ||
       (method === "POST" && path === "/api/machines") ||
+      // PENTE 5-B: machine metadata (name/OS) and per-machine sector visibility
+      // use the same versioned central PATCH; never include operational subroutes.
+      (method === "PATCH" && /^\/api\/machines\/[a-zA-Z0-9_-]{1,160}$/.test(path)) ||
       (method === "POST" && path === "/api/technicians") ||
       (method === "PATCH" && /^\/api\/technicians\/[a-zA-Z0-9_-]{1,160}$/.test(path)) ||
       (method === "PATCH" && /^\/api\/shifts\/[a-zA-Z0-9_-]{1,160}$/.test(path)) ||

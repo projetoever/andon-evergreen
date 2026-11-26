@@ -147,3 +147,32 @@ test("RC P0 #596: additive schema and machine-scoped API never alter reason link
   assert.match(api,/hiddenDirectSectorIds: true/);
   assert.match(guard,/checkCsrf/);
 });
+
+test("PENTE5-B CSRF: machine settings PATCH transmits token and retains strict central guard", async () => {
+  const read = (p: string) => readFile(new URL(p, import.meta.url), "utf8");
+  const [client, adapter, guard, form, errorMessages] = await Promise.all([
+    read("../src/api/andonApiClient.ts"),
+    read("../src/repositories/apiAndonRepository.ts"),
+    read("../server/src/security/centralMachineSettingsHttp.ts"),
+    read("../src/components/settings/MachineAdminPanel.tsx"),
+    read("../src/api/andonErrorMessages.ts"),
+  ]);
+  const metadataPattern = /^\/api\/machines\/[a-zA-Z0-9_-]{1,160}$/;
+  const needsToken = (method: string, path: string) => method === "PATCH" && metadataPattern.test(path);
+  assert.equal(needsToken("PATCH", "/api/machines/10"), true);
+  assert.equal(needsToken("PATCH", "/api/machines/M-37"), true);
+  assert.equal(needsToken("PATCH", "/api/machines/M-37/production-mode"), false);
+  assert.equal(needsToken("PATCH", "/api/machines/M-37/active"), false);
+  assert.equal(needsToken("GET", "/api/machines/M-37"), false);
+  // Exact client predicate mirrors the central machine-settings route guard.
+  assert.ok(client.includes(String.raw`(method === "PATCH" && /^\/api\/machines\/[a-zA-Z0-9_-]{1,160}$/.test(path))`));
+  assert.match(client, /getCentralCsrf\(baseUrl, workstationId \?\? ""\)/);
+  assert.match(client, /"X-Andon-CSRF": centralCsrf/);
+  assert.match(adapter, /this\.apiClient\.patch<ApiMachine>/);
+  assert.match(adapter, /\/api\/machines\/\$\{machineId\}/);
+  assert.match(guard, /isCentralMachineSettingsMutation/);
+  assert.match(guard, /checkCsrf\(readSecureCookie\(request, ACCESS_COOKIE\)/);
+  assert.match(form, /await updateMachineCatalog\(selectedMachine\.id, patch\)/);
+  assert.match(form, /await updateMachineDirectSectors\(/);
+  assert.match(errorMessages, /csrf_denied: "[^"]*tente a operação novamente\."/);
+});
