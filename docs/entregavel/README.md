@@ -29,6 +29,16 @@ Para peças futuras, copiar o [Modelo de Manual](modelos/MODELO_MANUAL.md) ou [M
 | M1-ACC-001 | [Aceite e evidências](20_ACEITE_TERMO_E_FORMULARIOS.md) | Homologadores | Checklist, registro por caso e Termo GO/NO-GO |
 | M1-GLS-001 | [Glossário operacional](21_GLOSSARIO.md) | Todos | Vocabulário padronizado PT-BR, BI e ACL |
 
+## Fase 4 — Homologação, capturas e transferência controlada
+
+| Código | Documento | Finalidade |
+|---|---|---|
+| M1-HML-001 | [Runbook de HML e evidências](30_RUNBOOK_HML_EVIDENCIAS.md) | Preparação, sequência e registro real dos 28 casos DOC1-QA-H01..H28, com provas por SHA |
+| M1-UX-001 | [Plano de capturas e treinamento](31_PLANO_CAPTURAS_E_TREINAMENTO.md) | Lista de telas/estados exigidos para manuais ilustrados e treinamento por perfil |
+| M1-REL-002 | [Checklist de transferência e release](32_CHECKLIST_TRANSFERENCIA_E_RELEASE.md) | Manifesto do pacote, propriedade, suporte, rollback, aprovação e handover |
+
+**Estado:** os três documentos são guias de execução, não evidência de casos já aprovados. Não foram coletadas capturas nem atualizado o notebook/fábrica nesta fase documental.
+
 ## Leituras obrigatórias antes da entrega
 
 - [Arquitetura atual](../ARQUITETURA.md), [dicionário de dados](../DOC1_DICIONARIO_DADOS_20261125.md), [fluxos](../DOC1_FLUXOS_OPERACIONAIS_20261125.md), [telas](../DOC1_MAPA_TELAS_NAVEGACAO_20261125.md) e [contrato BI](../DOC1_CONTRATO_BI_20261125.md).
