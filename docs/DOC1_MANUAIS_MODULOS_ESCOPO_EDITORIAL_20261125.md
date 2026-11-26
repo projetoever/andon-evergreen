@@ -22,6 +22,10 @@
 
 Os códigos são **identificadores editoriais propostos**, não nomes de arquivos já publicados.
 
+## Padrão visual obrigatório a partir do M1 v0.2
+
+Adotar o [Padrão Editorial M1](entregavel/PADRAO_EDITORIAL_M1.md) em toda nova geração DOCX/PDF: corpo **11,5 pt**, tabelas **10,8 pt**, H1 **19 pt**, H2 **14,2 pt**, A4, margens laterais **1,85 cm**, cabeçalhos repetidos e sem quebras artificiais por seção. Os [modelos reutilizáveis](entregavel/modelos/README.md) definem metadados, procedimentos, tabelas, evidências e revisão. PDF final sempre renderizado e verificado, com DOCX editável e hashes. Não reprocessar manual homologado silenciosamente; criar nova edição.
+
 ## 2. Contrato de cada página de manual
 
 1. **Título, revisão, SHA e status** (“prévia”, “homologada” ou “obsoleta”).
