@@ -1,7 +1,7 @@
 import { ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Factory, Plus, Search, X } from "lucide-react";
+import { Factory, Plus, Save, Search, X } from "lucide-react";
 
 import { useAndon } from "@/context/AndonProvider";
 import type { Machine, ProductionMode } from "@/types/machine";
@@ -74,7 +74,35 @@ function Section({
   );
 }
 
-export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: boolean }) {
+type MachineEditDraft = {
+  machineId: string;
+  name: string;
+  requireWorkOrderAtOpen: boolean;
+  hiddenDirectSectorIds: string[];
+};
+
+function machineEditDraft(machine: Machine): MachineEditDraft {
+  return {
+    machineId: machine.id,
+    name: machine.name,
+    requireWorkOrderAtOpen: machine.requireWorkOrderAtOpen === true,
+    hiddenDirectSectorIds: [...(machine.hiddenDirectSectorIds ?? [])],
+  };
+}
+
+function sameSectorVisibility(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sortedB = [...b].sort();
+  return [...a].sort().every((id, index) => id === sortedB[index]);
+}
+
+export function MachineAdminPanel({
+  centralAccess = false,
+  onDirtyChange,
+}: {
+  centralAccess?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   useInterfaceLanguage();
   const {
     machines,
@@ -97,7 +125,8 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
   const [newProductionMode, setNewProductionMode] = useState<ProductionMode>("scheduled");
   const [newRequireWorkOrder, setNewRequireWorkOrder] = useState(false);
   const [sectorCatalog, setSectorCatalog] = useState<AndonCategoryConfig[] | null>(null);
-  const [visibilitySaving, setVisibilitySaving] = useState(false);
+  const [machineDraft, setMachineDraft] = useState<MachineEditDraft | null>(null);
+  const [isSavingMachine, setIsSavingMachine] = useState(false);
   const [visibilityLoadFailed, setVisibilityLoadFailed] = useState(false);
   // Feature gates come from system-settings, not the visible Admin tab.
   // The central API still enforces approved workstation, session, ACL and CSRF.
@@ -126,7 +155,40 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
     selectedMachineId === null
       ? null
       : (machines.find((machine) => machine.id === selectedMachineId) ?? null);
-  const selectedMachineRequiresWorkOrder = selectedMachine?.requireWorkOrderAtOpen === true;
+  const activeDraft = machineDraft?.machineId === selectedMachine?.id ? machineDraft : null;
+  const selectedMachineRequiresWorkOrder = activeDraft?.requireWorkOrderAtOpen ??
+    (selectedMachine?.requireWorkOrderAtOpen === true);
+  const nameChanged = Boolean(selectedMachine && activeDraft && activeDraft.name.trim() !== selectedMachine.name);
+  const workOrderChanged = Boolean(selectedMachine && activeDraft &&
+    activeDraft.requireWorkOrderAtOpen !== (selectedMachine.requireWorkOrderAtOpen === true));
+  const sectorsChanged = Boolean(centralAccess && selectedMachine && activeDraft &&
+    !sameSectorVisibility(activeDraft.hiddenDirectSectorIds, selectedMachine.hiddenDirectSectorIds ?? []));
+  const machineChangesPending = nameChanged || workOrderChanged || sectorsChanged;
+  const creatingChangesPending = creating && Boolean(
+    newId.trim() || newName.trim() || newRequireWorkOrder || newProductionMode !== "scheduled",
+  );
+  const hasUnsavedChanges = machineChangesPending || creatingChangesPending;
+
+  useEffect(() => {
+    // Retain edits during background refreshes; reset only on a change of machine identity.
+    const machine = machines.find(item => item.id === selectedMachineId);
+    setMachineDraft(machine ? machineEditDraft(machine) : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMachineId]);
+
+  useEffect(() => { onDirtyChange?.(hasUnsavedChanges); }, [hasUnsavedChanges, onDirtyChange]);
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const preventLoss = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", preventLoss);
+    return () => window.removeEventListener("beforeunload", preventLoss);
+  }, [hasUnsavedChanges]);
+
+  const confirmDiscardChanges = () => !hasUnsavedChanges ||
+    window.confirm(ui("Há alterações não salvas. Deseja descartá-las?"));
 
   useEffect(() => {
     if (!centralAccess) return;
@@ -147,22 +209,59 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
     return () => { alive = false; window.removeEventListener("focus", refresh); };
   }, [centralAccess]);
 
-  async function updateDirectVisibility(machine: Machine, sectorId: string, visible: boolean) {
-    if (!centralAccess || !canEditMachineMetadata || visibilitySaving || !sectorCatalog) return;
-    const hidden = machine.hiddenDirectSectorIds ?? [];
-    const updated = visible
-      ? hidden.filter(id => id !== sectorId)
-      : [...new Set([...hidden, sectorId])];
-    if (updated.length === hidden.length && updated.every(id => hidden.includes(id))) return;
-    setVisibilitySaving(true);
-    try {
-      await updateMachineDirectSectors(machine.id, updated, machine.sectorVisibilityRevision ?? 0);
-      toast.success(ui("Visibilidade dos setores desta máquina atualizada."));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : ui("Não foi possível salvar a visibilidade. Atualize e tente novamente."));
-    } finally {
-      setVisibilitySaving(false);
+  function updateDirectVisibility(machine: Machine, sectorId: string, visible: boolean) {
+    if (!centralAccess || !canEditMachineMetadata || isSavingMachine || !sectorCatalog) return;
+    setMachineDraft(previous => {
+      if (!previous || previous.machineId !== machine.id) return previous;
+      const hidden = previous.hiddenDirectSectorIds;
+      const next = visible
+        ? hidden.filter(id => id !== sectorId)
+        : [...new Set([...hidden, sectorId])];
+      return { ...previous, hiddenDirectSectorIds: next };
+    });
+  }
+
+  async function handleSaveMachine() {
+    if (!selectedMachine || !activeDraft || !canEditMachineMetadata ||
+        isSavingMachine || !machineChangesPending) return;
+    const name = activeDraft.name.trim();
+    if (!name) {
+      toast.error(ui("Informe o nome da máquina antes de salvar."));
+      return;
     }
+    setIsSavingMachine(true);
+    let metadataSaved = false;
+    try {
+      // Central metadata can be sent in one PATCH. Sector changes use a separate
+      // server-verified CAS revision and audit; neither can bypass an ACL.
+      const patch: { name?: string; requireWorkOrderAtOpen?: boolean } = {};
+      if (nameChanged) patch.name = name;
+      if (workOrderChanged) patch.requireWorkOrderAtOpen = activeDraft.requireWorkOrderAtOpen;
+      if (Object.keys(patch).length > 0) {
+        await updateMachineCatalog(selectedMachine.id, patch);
+        metadataSaved = true;
+      }
+      if (sectorsChanged) {
+        await updateMachineDirectSectors(
+          selectedMachine.id, [...activeDraft.hiddenDirectSectorIds].sort(),
+          selectedMachine.sectorVisibilityRevision ?? 0,
+        );
+      }
+      setMachineDraft({ ...activeDraft, name });
+      toast.success(ui("Alterações da máquina salvas."));
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "";
+      toast.error(metadataSaved
+        ? ui("Cadastro salvo, mas não foi possível salvar os setores. Verifique e tente novamente.")
+        : detail || ui("Não foi possível salvar a máquina. Verifique e tente novamente."));
+    } finally {
+      setIsSavingMachine(false);
+    }
+  }
+
+  function discardMachineChanges() {
+    if (!selectedMachine || isSavingMachine) return;
+    setMachineDraft(machineEditDraft(selectedMachine));
   }
 
   useEffect(() => {
