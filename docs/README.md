@@ -42,7 +42,7 @@ A Fase 4 reúne o [runbook de HML](entregavel/30_RUNBOOK_HML_EVIDENCIAS.md), a [
 - [Roadmap](ROADMAP.md) e [plano do entregável](DOC1_PLANO_ENTREGAVEL_20261125.md).
 - [Issue de governança DOC 1/M1 #655](https://github.com/projetoever/andon-evergreen/issues/655).
 
-## 5. Regra de mudanças e publicação
+## 6. Regra de mudanças e publicação
 
 1. Escrever em branch `docs/` + PR, sem editar runtime ou migrations apenas para atualizar manual.
 2. Referenciar o SHA de origem, a revisão documental, a data e o perfil. Conferir links locais.
