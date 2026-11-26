@@ -197,6 +197,7 @@ export function AdminSettingsWorkspace({
 }) {
   useInterfaceLanguage();
   const [tab, setTab] = useState<SettingsTab>("general");
+  const [machineDirty, setMachineDirty] = useState(false);
   // Setores e Grupos são páginas independentes; APIs e permissões continuam separadas.
   const capabilityTab: SettingsTab = tab;
   // R10-07: the authenticated Hub grant "andon.settings.open" opens the
@@ -217,11 +218,20 @@ export function AdminSettingsWorkspace({
     if (tab === "shifts") return <ShiftsSettingsTab />;
     if (tab === "classifications") return <ClassificationsTab centralAccess={centralAccess} />;
     if (tab === "assetCatalogs") return <MachineAssetCatalogPanel />;
-    if (tab === "machines") return <MachineAdminPanel centralAccess={centralAccess} />;
+    if (tab === "machines") return <MachineAdminPanel centralAccess={centralAccess} onDirtyChange={setMachineDirty} />;
     return null;
   };
 
+  const canLeaveEditor = () => !machineDirty ||
+    window.confirm(ui("Há alterações não salvas. Deseja descartá-las?"));
+
+  const handleAdminBack = () => {
+    if (!canLeaveEditor()) return;
+    onClose();
+  };
+
   const handleAdminLogout = () => {
+    if (!canLeaveEditor()) return;
     // Central login is a server-owned HttpOnly session, never a legacy token.
     // Closing the ANDON operational panel must not log out of the Hub.
     if (!centralAccess) logoutAdmin();
@@ -238,8 +248,12 @@ export function AdminSettingsWorkspace({
       items={visibleTabs}
       activeId={tab}
       resetContentScrollOnTabChange
-      onSelect={(id) => setTab(id as SettingsTab)}
-      onBack={onClose}
+      onSelect={(id) => {
+        if (id === tab || !canLeaveEditor()) return;
+        setMachineDirty(false);
+        setTab(id as SettingsTab);
+      }}
+      onBack={handleAdminBack}
       backLabel={ui("Voltar ao ANDON")}
       headerActions={
         <button type="button" onClick={handleAdminLogout}
