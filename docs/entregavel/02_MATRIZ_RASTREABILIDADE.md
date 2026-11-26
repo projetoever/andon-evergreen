@@ -9,11 +9,11 @@
 | F-03 | OS obrigatória e única quando configurado | `andonCalls.ts`; `workOrderUniqueness.ts` | `calls.open`, máquina/configuração | H03 | MAN-OP |
 | F-04 | Abertura por grupo não duplica setor ocupado | `groupBatchOpening.ts`; `andonCalls.ts` | `calls.open`, validação transacional | H04 | MAN-OP |
 | F-05 | Setor oculto mantém contexto de chamado ativo | `MachineDetailPage.tsx`; REFINE23 | Configuração e estado servidor | H05 | MAN-OP |
-| F-06 | Vários técnicos, fases e tempos distintos | `centralMultiTechnicianAttendance.ts`; Prisma | `calls.attend`, `calls.technicians.manage` | H06,H07 | MAN-MNT |
+| F-06 | Vários técnicos, fases e tempos distintos | `server/src/routes/andonCalls.ts`; Prisma | `calls.attend`, `calls.technicians.manage` | H06,H07 | MAN-MNT |
 | F-07 | Atribuição de impacto físico sem dupla contagem | `FailureEvent`, `CallImpactInterval`, analytics | Diagnóstico + ação legítima | H08,H16 | MAN-MNT, MAN-BI |
 | F-08 | Histórico por máquina e global com filtro autorizado | `GlobalCallHistoryPage.tsx`; `andonCalls.ts` | `history.read`, `history.global.read`, escopo | H09–H11 | MAN-HIS |
 | F-09 | P1..Pn até máquinas ativas e card do dashboard | `dashboardPriority.ts`, `DashboardPriorityPage.tsx` | `priorities.write`, CAS | H12,H13 | MAN-PRI |
-| F-10 | Programação independe do ranking | `centralProductionModeCredential.ts`; `machines.ts` | `production.schedule.request/write` | H14 | MAN-PRI |
+| F-10 | Programação independe do ranking | `server/src/routes/machines.ts`; `machines.ts` | `production.schedule.request/write` | H14 | MAN-PRI |
 | F-11 | BI distingue 0 real de sem amostra | `analytics/overview.ts`; `BiSampleDiagnosticsPanel.tsx` | `bi.read`, elegibilidade causal | H15–H17 | MAN-BI |
 | F-12 | BI mantém valores ao trocar visual | `BiChartExplorer.tsx`, analytics | `bi.read` e filtros | H17,H18 | MAN-BI |
 | F-13 | Auditoria de mutação e telemetria são diferentes | `accessAudit.ts`; `AuditEvent` | `audit.read` | H19,H20 | MAN-AUD |
