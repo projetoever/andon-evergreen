@@ -12,6 +12,10 @@ O marco técnico **DOC 1** consolida os refinamentos REFINE 23, PENTE 1–6 e MO
 
 **Nota de maturidade:** código mesclado e CI aprovada não significam homologação funcional no notebook, ensaio em Android/iOS nem implantação industrial. Trechos históricos abaixo devem ser lidos com essa distinção; o [Estado Atual](docs/ESTADO_ATUAL.md) contém a síntese atualizada. A documentação comercial e o pacote de código ainda dependem de congelamento de SHA, validação e direitos de distribuição.
 
+## Biblioteca técnica DOC 1 — fase 2
+
+Além do [marco documental](docs/DOC1_MARCO_20261125.md), os registros atualizados incluem [arquitetura vigente](docs/ARQUITETURA.md), [autorização, grants e rotas](docs/DOC1_AUTORIZACAO_MODULOS_20261125.md), [homologação por cenário](docs/DOC1_HOMOLOGACAO_GUIADA_20261125.md), [biblioteca de manuais planejados](docs/DOC1_MANUAIS_MODULOS_ESCOPO_EDITORIAL_20261125.md) e [instalação controlada](docs/INSTALACAO.md). Materiais documentais em revisão de PR não são indicação de homologação ou de autorização para atualização do servidor industrial.
+
 ## Estado oficial
 
 | Item | Estado |
