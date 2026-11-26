@@ -7,7 +7,7 @@
 
 ## 1. Visão de domínio
 
-O schema Prisma contém **33 modelos** distribuídos entre cadastro, fluxo operacional, tempos/impacto, analytics de produção, acesso e trilha de auditoria.
+O schema Prisma contém **36 modelos** distribuídos entre cadastro, fluxo operacional, tempos/impacto, analytics de produção, acesso e trilha de auditoria.
 
 ```mermaid
 flowchart LR
@@ -36,13 +36,13 @@ As ligações tracejadas indicam apenas campos de correlação, **não** necessa
 | Grupo | Modelos Prisma |
 |---|---|
 | Configuração | `SystemSettings`, `DashboardPriorityConfig`, `ModuleCredential` |
-| Máquinas, ativos e catálogos | `Machine`, `AndonCategory`, `CallReason`, `CallReasonOption`, `MachineSetType`, `MachineSubsetType`, `MachineSet`, `MachineSubset`, `FailureClassification`, `Shift` |
+| Máquinas, ativos e catálogos | `Machine`, `AndonCategory`, `CallReason`, `CallReasonOption`, `MachineSetType`, `MachineSubsetType`, `MachineSet`, `MachineSubset`, `FailureClassification`, `Shift`, `WorkstationMachineSoundPreference` |
 | Chamados, tempos e impacto | `AndonCall`, `AndonCallReasonSnapshot`, `TechnicianSession`, `TechnicianTimeAllocation`, `FailureEvent`, `CallImpactInterval`, `MachineProductionEvent`, `Technician`, `TechnicianTechnicalArea`, `FailureDiagnosisAudit` |
 | Prioridades | `MachinePriorityHistory` |
 | Acesso e dispositivos | `Workstation`, `WorkstationAdmission`, `AccessUser`, `AccessPermission`, `AccessMachine`, `AccessSession`, `KioskDevice`, `KioskTrustLease`, `IndustrialServiceIdentity`, `IndustrialServiceSession` |
 | Auditoria | `AuditEvent` |
 
-**Conferência de quantidade:** 3 + 10 + 12 + 1 + 6 + 1 = 33. Modelos não representam automaticamente tabelas com os mesmos nomes; conferir as diretivas `@@map`.
+**Conferência de quantidade:** 3 (configuração) + 11 (máquinas/catálogos) + 10 (chamados/tempos) + 1 (prioridades) + 10 (acesso/dispositivos) + 1 (auditoria) = **36 modelos**. Modelos não representam automaticamente tabelas com os mesmos nomes; conferir as diretivas `@@map`.
 
 ## 3. Entidades operacionais — chaves, campos e responsabilidades
 
