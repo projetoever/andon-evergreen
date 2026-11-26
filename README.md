@@ -6,6 +6,12 @@ O **ANDON Web Industrial** é uma plataforma local para conectar operação, man
 
 A solução foi desenhada para ambientes industriais que precisam de implantação controlada, funcionamento na rede interna e domínio sobre seus próprios dados — sem depender de uma nuvem externa para a operação diária.
 
+## Marco documental — 25/11/2026
+
+O marco técnico **DOC 1** consolida os refinamentos REFINE 23, PENTE 1–6 e MOB 1 em [registro de baseline](docs/DOC1_MARCO_20261125.md), [matriz funcional e casos de homologação](docs/DOC1_MATRIZ_FUNCIONAL_20261125.md) e [plano de manuais/entregável](docs/DOC1_PLANO_ENTREGAVEL_20261125.md). A revisão partiu de `main@6018335c6f085757a0fd35faed8a2893f4f03e0a` e da versão do instalador `1.0.0-pilot.3`.
+
+**Nota de maturidade:** código mesclado e CI aprovada não significam homologação funcional no notebook, ensaio em Android/iOS nem implantação industrial. Trechos históricos abaixo devem ser lidos com essa distinção; o [Estado Atual](docs/ESTADO_ATUAL.md) contém a síntese atualizada. A documentação comercial e o pacote de código ainda dependem de congelamento de SHA, validação e direitos de distribuição.
+
 ## Estado oficial
 
 | Item | Estado |
