@@ -6,6 +6,12 @@
 
 Este diretório reúne os documentos **editáveis em Markdown** necessários para converter o piloto em um entregável verificável. Ele não contém credenciais, dados fabris, licença presumida, exportações de produção ou artefatos executáveis. A versão industrial **não está liberada** por esta biblioteca.
 
+## Padrão de diagramação, revisão e modelos
+
+Os materiais desta edição usam o [Padrão Editorial M1, revisão 0.2](PADRAO_EDITORIAL_M1.md): corpo 11,5 pt, tabelas 10,8 pt (11 pt cabeçalho), H1 19 pt, H2 14,2 pt, margem A4 1,85 cm lateral, contrastes preservados e **sem paginação artificial de uma seção por folha**. Os arquivos Markdown permanecem a fonte de conteúdo; PDFs/DOCX finais só após QA de renderização e versão identificada.
+
+Para peças futuras, copiar o [Modelo de Manual](modelos/MODELO_MANUAL.md) ou [Modelo de Relatório](modelos/MODELO_RELATORIO.md); há também um modelo DOCX editável versão 0.2 no pacote Drive. Para a documentação técnica fora do M1, consulte o [Índice oficial](../README.md). Documentos REFINE/PENTE/SEC04 históricos não foram renomeados, pois são referenciados por PRs e issues.
+
 ## Inventário da biblioteca
 
 | Código | Documento | Público | Propósito |
