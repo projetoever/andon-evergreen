@@ -10,7 +10,7 @@ Este diretório reúne os documentos **editáveis em Markdown** necessários par
 
 Os materiais desta edição usam o [Padrão Editorial M1, revisão 0.2](PADRAO_EDITORIAL_M1.md): corpo 11,5 pt, tabelas 10,8 pt (11 pt cabeçalho), H1 19 pt, H2 14,2 pt, margem A4 1,85 cm lateral, contrastes preservados e **sem paginação artificial de uma seção por folha**. Os arquivos Markdown permanecem a fonte de conteúdo; PDFs/DOCX finais só após QA de renderização e versão identificada.
 
-Para peças futuras, copiar o [Modelo de Manual](modelos/MODELO_MANUAL.md) ou [Modelo de Relatório](modelos/MODELO_RELATORIO.md); há também um modelo DOCX editável versão 0.2 no pacote Drive. Para a documentação técnica fora do M1, consulte o [Índice oficial](../README.md). Documentos REFINE/PENTE/SEC04 históricos não foram renomeados, pois são referenciados por PRs e issues.
+Para peças futuras, copiar o [Modelo de Manual](modelos/MODELO_MANUAL.md) ou [Modelo de Relatório](modelos/MODELO_RELATORIO.md). A revisão visual 0.2 foi conferida: o dossiê A4 passou de **10 para 8 páginas**, mantendo 11 tabelas e conteúdo textual; [PDF revisado](https://drive.google.com/file/d/1BmL2wpWiB8-7DW-sCXtmGtZ8AAcWPq7E/view), [DOCX revisado](https://docs.google.com/document/d/1oAgIq16brBd3DKf4Vw6sbpco7MpE-aJV/edit), [modelo DOCX](https://docs.google.com/document/d/164SCN5MAJkVeYoLVqGrWRe5HKHRHtUpQ/edit) e [ZIP editorial](https://drive.google.com/file/d/1g7c8uoRfL9B8KB3YKsmcctRN3vxxd0Od/view) foram armazenados na pasta oficial 90 do Drive. Para a documentação técnica fora do M1, consulte o [Índice oficial](../README.md). Documentos REFINE/PENTE/SEC04 históricos não foram renomeados, pois são referenciados por PRs e issues.
 
 ## Inventário da biblioteca
 
