@@ -56,6 +56,10 @@ Fase C — redigir guias de Operador, Mantenedor e Liderança primeiro; depois A
 Fase D — revisão técnica cruzada em PT-BR; traduzir conforme terminologia do sistema, sem forçar tradução de dados cadastrados.  
 Fase E — gerar DOCX editável + PDF/A quando pertinente + pacote de arquivos, links e checksums; revisar direitos e obter aceite.
 
+## Referências de autoria da Fase 3
+
+Para escrever procedimentos sem suposições, usar o [dicionário de dados](DOC1_DICIONARIO_DADOS_20261125.md), o [fluxo de chamados](DOC1_FLUXOS_OPERACIONAIS_20261125.md), o [inventário de telas](DOC1_MAPA_TELAS_NAVEGACAO_20261125.md) e o [contrato BI](DOC1_CONTRATO_BI_20261125.md). Nenhum screenshot antigo pode substituir o ato de testar a versão definida.
+
 ## 5. Referências
 
 - [Biblioteca/documentos do entregável](DOC1_PLANO_ENTREGAVEL_20261125.md)
