@@ -13,7 +13,7 @@ export function buildAndonApiErrorMessage(
     workstation_identification_required: "Não foi possível identificar esta workstation. Reabra o Hub e conclua a identificação.",
     workstation_session_mismatch: "A sessão não corresponde à workstation atual. Faça login novamente neste dispositivo.",
     authentication_required: "Sua sessão não está válida. Identifique-se novamente no Hub.",
-    csrf_denied: "A verificação de segurança da sessão falhou. Faça login novamente e tente uma nova abertura.",
+    csrf_denied: "A verificação de segurança da sessão falhou. Atualize a página, confirme seu login e tente a operação novamente.",
     permission_denied: "Seu usuário não tem permissão para executar esta operação.",
     machine_scope_denied: "Seu usuário não tem permissão para abrir chamados nesta máquina.",
     origin_denied: "A origem HTTPS do navegador não corresponde à origem autorizada do servidor.",
