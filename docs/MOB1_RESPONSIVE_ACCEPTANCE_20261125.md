@@ -1,3 +1,7 @@
+> **ATUALIZAÇÃO DE ESTADO — DOC 1, 25/11/2026:** a descrição abaixo documenta o estágio da branch antes do merge. O estado atual do GitHub confirma [PR #653](https://github.com/projetoever/andon-evergreen/pull/653) **mesclada na main** em 25/11/2026 23:58:54 UTC, com `main@6018335c6f085757a0fd35faed8a2893f4f03e0a`. O workflow final [45724520894](https://github.com/projetoever/andon-evergreen/actions/runs/45724520894) concluiu com sucesso. **Não há nesta documentação evidência de homologação em aparelho Android/iOS real ou instalação desse SHA no notebook/servidor industrial.** Consulte [DOC 1](DOC1_MARCO_20261125.md).
+
+---
+
 # MOB 1 — Auditoria e estabilização da experiência mobile
 
 **Produto:** ANDON Web Industrial — Evergreen  

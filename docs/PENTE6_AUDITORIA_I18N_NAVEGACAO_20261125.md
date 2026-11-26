@@ -1,3 +1,7 @@
+> **ATUALIZAÇÃO DE ESTADO — DOC 1, 25/11/2026:** o texto original representa a fase de revisão da branch. A [PR #651](https://github.com/projetoever/andon-evergreen/pull/651) está **mesclada**; a main passou por `9f6df886a170ff208a0a3d3841ddfd2f41b03644` e evoluiu para `6018335c6f085757a0fd35faed8a2893f4f03e0a`. A CI final da PR consta como sucesso ([45719074497](https://github.com/projetoever/andon-evergreen/actions/runs/45719074497)). **Homologação manual e implantação não decorrem desse merge.** Consultar [DOC 1](DOC1_MARCO_20261125.md).
+
+---
+
 # PENTE 6 — Auditoria, idiomas e navegação do ANDON
 Data: 25/11/2026 · Projeto: ANDON Web Industrial — Ever Green  
 PR de homologação: https://github.com/projetoever/andon-evergreen/pull/651  

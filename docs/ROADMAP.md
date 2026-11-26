@@ -1,119 +1,20 @@
-﻿# Roadmap do Produto Andon
+# Roadmap governado — ANDON Web Industrial
 
-Este documento define a evolução planejada do Andon Web Industrial como produto instalável.
+**Atualização:** 25/11/2026. O histórico antigo de marcos `v1.15` até `v2.0` representa planejamento de arquitetura e **não versões atuais do instalador**. A fonte de versão é `release-manifest.json`; o piloto segue `1.0.0-pilot.3`.
 
----
+## Situação por horizonte
+| Horizonte | Foco | Critério de término |
+|---|---|---|
+| Marco DOC 1 (atual) | Documentar `main@6018335c...` com matriz, rastreabilidade e pendências; recuperar contexto de REFINE23/PENTEs/MOB1. | Documentação em Drive e PR de docs revisadas |
+| Homologação da candidata | Fluxos de chamados e grupos, Histórico, Prioridades P1..Pn, BI, auditoria, sessões, responsividade, segurança e instalador. | Casos [DOC1-H01..H12](DOC1_MATRIZ_FUNCIONAL_20261125.md) com evidência, bugs triados |
+| Congelamento de release | Tag/SHA, checksum, backup/restauração, migrações e checklist de atualização/reversão. | CI no SHA final + aceite técnico; nenhuma implantação automática |
+| Documentação do produto | Guias por perfil/módulo, tutoriais com telas reais, referência técnica, pacote editável/PDF e treinamento. | Revisão funcional/editorial e aprovações |
+| Entregável controlado | Código-fonte versionado, instalador, manuais, suporte, direitos de uso/licenciamento e identidade neutra por cliente. | Aprovação comercial, segurança e termos |
+| Evolução futura | SDK/IT-OT, equipamentos, CLPs, Node-RED e conectores opcionais, em ensaios separados. | Gated testing industrial por integração e autorização |
 
-## v1.15 - Base funcional do Andon
-
-Objetivo: consolidar a aplicação visual e funcional.
-
-Itens:
-
-- Painel geral de máquinas;
-- Tela individual por máquina;
-- Chamados Andon;
-- Criticidade;
-- Atendimento de manutenção;
-- Histórico;
-- Produção programada e não programada;
-- Acompanhamento pós-manutenção;
-- Retorno para manutenção;
-- Múltiplos técnicos;
-- Preparação para relatórios;
-- Operação em navegador.
-
----
-
-## v1.16 - API Node.js + PostgreSQL
-
-Objetivo: substituir persistência local por persistência centralizada.
-
-Itens:
-
-- Criar backend Node.js;
-- Criar estrutura Prisma;
-- Criar banco PostgreSQL;
-- Criar tabelas principais;
-- Criar rotas de máquinas;
-- Criar rotas de chamados;
-- Criar rotas de histórico;
-- Criar rotas de relatórios;
-- Conectar frontend ao modo API.
-
----
-
-## v1.17 - Docker Compose completo
-
-Objetivo: empacotar o sistema completo.
-
-Itens:
-
-- Container do frontend;
-- Container da API;
-- Container PostgreSQL;
-- Volumes persistentes;
-- Arquivo .env;
-- Healthcheck;
-- Rede interna Docker;
-- Comando único de subida.
-
----
-
-## v1.18 - Scripts de operação
-
-Objetivo: facilitar instalação e manutenção.
-
-Itens:
-
-- install.bat;
-- start.bat;
-- stop.bat;
-- update.bat;
-- backup.bat;
-- restore.bat;
-- open-kiosk.bat;
-- documentação de instalação;
-- documentação de backup.
-
----
-
-## v1.19 - Instalador Windows
-
-Objetivo: transformar o pacote técnico em produto instalável.
-
-Itens:
-
-- Setup.exe;
-- Criação de pastas;
-- Cópia de arquivos;
-- Criação de atalhos;
-- Validação do Docker;
-- Inicialização dos serviços;
-- Abertura do painel;
-- Configuração inicial.
-
----
-
-## v2.0 - Integração industrial
-
-Objetivo: conectar o Andon ao chão de fábrica de forma automatizada.
-
-Itens:
-
-- Node-RED;
-- MQTT;
-- ESP32;
-- Raspberry Pi;
-- Integração com CLP;
-- Sinais automáticos de máquina;
-- Status automático;
-- Alarmes;
-- Dashboards industriais;
-- Indicadores avançados.
-
----
-
-## Visão futura
-
-O Andon deverá evoluir para uma plataforma industrial completa, adaptável por cliente, com módulos de operação, manutenção, produção, liderança, indicadores e integração com dispositivos industriais.
+## Governança do backlog
+- PR com **CI verde** ainda requer teste funcional; merge não habilita implantação na fábrica.
+- Números de piloto observados em print não constituem prova de ganho financeiro ou produtividade.
+- Preferir correções rastreadas por issue e testes sem refatorar componentes estáveis sem necessidade.
+- Mudanças de cálculo BI exigem dataset controlado, metodologia e regressão; melhorias visuais não devem alterar amostras.
+- Tratar versões históricas do roadmap antigo como histórico Git, mantendo o estado atual nos documentos [DOC 1](DOC1_MARCO_20261125.md) e [Plano editorial](DOC1_PLANO_ENTREGAVEL_20261125.md).

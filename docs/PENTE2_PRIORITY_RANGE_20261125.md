@@ -1,3 +1,7 @@
+> **ATUALIZAÇÃO DE ESTADO — DOC 1, 25/11/2026:** o documento foi escrito durante a implementação e pode conter estado anterior ao merge. O lote oficial [PR #646](https://github.com/projetoever/andon-evergreen/pull/646) foi integrado à `main`; complementos [#650](https://github.com/projetoever/andon-evergreen/pull/650) e [#652](https://github.com/projetoever/andon-evergreen/pull/652) também constam mesclados. O estado de destino exigido continua **homologação com dados isolados** (P1..Pn, permissões, CAS/409, migração e dashboard). Não inferir que a migração foi aplicada em banco industrial. Ver [DOC 1](DOC1_MARCO_20261125.md).
+
+---
+
 # PENTE 2 — Visão Geral, Histórico autorizado e faixa dinâmica P1..Pn
 
 **Data:** 25/11/2026 · **Issue:** #614 · **Branch:** `pente/02-priority-range-overview-20261125`

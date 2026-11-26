@@ -1,82 +1,34 @@
-﻿# Estado Atual do Projeto Andon
+# Estado atual — ANDON Web Industrial
 
-Este documento registra o estado atual do projeto Andon Web Industrial e serve como referência para desenvolvimento, apresentação e continuidade técnica.
+**Revisão documental:** 25/11/2026 · **Canal:** piloto `1.0.0-pilot.3`  
+**Fonte verificada:** `main@6018335c6f085757a0fd35faed8a2893f4f03e0a`.  
+**Importante:** versão de código integrado **não** significa que este SHA esteja instalado ou homologado no notebook/servidor industrial. Veja [DOC 1](DOC1_MARCO_20261125.md).
 
----
+## Arquitetura efetiva da linha piloto
+- Web frontend via Hub e módulos ANDON, Histórico, Prioridades, BI e painéis administrativos.
+- Backend Node.js/Fastify + Prisma com PostgreSQL persistente.
+- Controle de usuários, sessão, permissões, escopo de máquinas e workstations; ações protegidas no servidor.
+- Operações industriais registradas em histórico e eventos auditáveis.
+- Instalador Windows do piloto, Health, scripts de atualização e recuperação documentados; `release-manifest.json` é a fonte da versão de instalação (`1.0.0-pilot.3`).
+- Configurações de rede, PostgreSQL e transporte variam por perfil e ambiente; não extrapolar HTTPS de laboratório para fábrica.
 
-## Visão geral
+## Funcionalidades presentes no código da main
+1. **ANDON operacional:** máquinas, setores/grupos, chamados e OS conforme política, múltiplos técnicos, atendimento/acompanhamento/encerramento e histórico.
+2. **Dashboard:** cards com setor e grupo, status e rótulos de máquinas mais legíveis; destaques configuráveis de prioridades P1..Pn.
+3. **Prioridades:** sequência, visão de programação independente do rank, operação sujeita a permissão, concorrência e auditoria.
+4. **Histórico Global:** filtros, navegação, identificação dos participantes, tempos individuais e indicadores de parada.
+5. **BI:** indicadores com regras de elegibilidade/coortes, filtros, visuais interativos e estados de falta de amostra; gráficos revisados para leitura/contraste.
+6. **Hub/Admin/Auditoria:** menus conforme autorização, configuração, `audit.read` e `audit.export`, log central e exports protegidos.
+7. **Mobile (MOB 1):** refinamento responsivo integrado, ainda **sem aceite funcional comprovado em aparelhos reais**.
 
-O Andon Web Industrial é uma aplicação para chão de fábrica voltada ao monitoramento de máquinas, abertura de chamados Andon, acompanhamento de manutenção, histórico de eventos e evolução para indicadores industriais.
+Os detalhes e PRs estão em [Matriz DOC 1](DOC1_MATRIZ_FUNCIONAL_20261125.md); os critérios de integridade em [Metodologia BI](BI_METODOLOGIA_E_QUALIDADE.md). A documentação REFINE e PENTE mais antiga permanece como registro de evolução, não é automaticamente o estado final da main.
 
-O projeto começou como frontend local para validação rápida da operação, mas está sendo evoluído para uma plataforma completa com API, banco PostgreSQL, Docker Compose e instalador Windows.
+## Distinção de estados
+- **Integrado:** código mesclado em main; SHA de referência acima.
+- **CI:** último workflow da PR MOB 1 [45724520894](https://github.com/projetoever/andon-evergreen/actions/runs/45724520894) consta como `success`; executar novamente os gates pertinentes se o SHA de release mudar.
+- **Homologação:** ainda precisa completar cenários DOC1-H01..H12 no notebook e dispositivos reais.
+- **Implantação fabril:** não inferida e não realizada nesta atualização documental.
+- **Comercialização:** requer aceite de segurança, suporte, licença/direitos e pacote documentado.
 
----
-
-## Estado funcional atual
-
-O sistema possui como base:
-
-- Painel geral de máquinas;
-- Tela individual por máquina;
-- Abertura de chamado Andon;
-- Status de máquina;
-- Status do chamado;
-- Atendimento de manutenção;
-- Criticidade do chamado;
-- Histórico de eventos;
-- Produção programada e não programada;
-- Acompanhamento pós-manutenção;
-- Retorno para manutenção;
-- Seleção de múltiplos técnicos;
-- Relatórios e indicadores em evolução;
-- Suporte ao uso em modo kiosk.
-
----
-
-## Decisões consolidadas
-
-As principais decisões técnicas e de produto são:
-
-- PostgreSQL será o banco principal da evolução do sistema;
-- A aplicação deverá operar localmente na rede da empresa;
-- O frontend será mantido como aplicação web;
-- A API será responsável pelas regras de negócio e persistência;
-- Docker Compose será usado para empacotamento dos serviços;
-- O instalador Windows será criado por cima da estrutura Docker;
-- O sistema deve ser adaptável para diferentes empresas, linhas e máquinas;
-- A integração industrial futura deverá considerar Node-RED, MQTT, ESP32, Raspberry Pi e CLP.
-
----
-
-## O que ainda está em evolução
-
-- Consolidação do backend Node.js;
-- Modelagem definitiva do banco PostgreSQL;
-- Migração definitiva da persistência local para API;
-- Docker Compose completo;
-- Scripts de instalação;
-- Backup e restore automatizados;
-- Instalador Windows;
-- Tela administrativa para configuração por cliente;
-- Usuários e permissões;
-- Integração industrial.
-
----
-
-## Direção do produto
-
-O objetivo é transformar o Andon em uma plataforma industrial instalável, capaz de ser entregue para empresas do porte da Evergreen e adaptada para diferentes ambientes fabris.
-
-A entrega final deve incluir:
-
-- Frontend web;
-- Backend/API;
-- PostgreSQL;
-- Docker Compose;
-- Scripts de instalação;
-- Backup e restore;
-- Modo kiosk;
-- Painel administrativo;
-- Documentação técnica;
-- Instalador Windows;
-- Integrações industriais futuras.
+## Próximos gates
+Revisar mudanças paralelas, congelar o SHA candidato, validar backup e restaurabilidade em ambiente isolado, homologar por perfil/módulo, construir manuais com screenshots dessa versão, gerar release notes e entregável com código após autorização. A documentação pública evita segredos e topologia interna de clientes.
