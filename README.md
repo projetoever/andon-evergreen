@@ -16,6 +16,15 @@ O marco técnico **DOC 1** consolida os refinamentos REFINE 23, PENTE 1–6 e MO
 
 Além do [marco documental](docs/DOC1_MARCO_20261125.md), os registros atualizados incluem [arquitetura vigente](docs/ARQUITETURA.md), [autorização, grants e rotas](docs/DOC1_AUTORIZACAO_MODULOS_20261125.md), [homologação por cenário](docs/DOC1_HOMOLOGACAO_GUIADA_20261125.md), [biblioteca de manuais planejados](docs/DOC1_MANUAIS_MODULOS_ESCOPO_EDITORIAL_20261125.md) e [instalação controlada](docs/INSTALACAO.md). Materiais documentais em revisão de PR não são indicação de homologação ou de autorização para atualização do servidor industrial.
 
+## DOC 1 — Referências de engenharia, fluxos e telas (fase 3)
+
+- [Dicionário de dados — 36 modelos Prisma](docs/DOC1_DICIONARIO_DADOS_20261125.md): conceitos, relacionamentos, histórico e campos sensíveis.
+- [Fluxos de chamados, grupos e múltiplos técnicos](docs/DOC1_FLUXOS_OPERACIONAIS_20261125.md): estados reais, operações HTTP, impacto físico e testes.
+- [Mapa das telas e navegação](docs/DOC1_MAPA_TELAS_NAVEGACAO_20261125.md): rotas efetivas, modo central versus legado, permissões e mobile.
+- [Contratos e interpretação do ANDON BI](docs/DOC1_CONTRATO_BI_20261125.md): coortes, fórmulas, Sem amostra, zero, MTBF provisório e qualidade de dados.
+
+Estes são **registros para engenharia e preparação de manuais**, não evidências de homologação industrial nem contratos de API formalmente publicados.
+
 ## Estado oficial
 
 | Item | Estado |
