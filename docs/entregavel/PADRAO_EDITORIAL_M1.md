@@ -70,4 +70,4 @@
 - [Modelo de dossiê/relatório](modelos/MODELO_RELATORIO.md) — sumário, arquitetura, métricas, riscos e decisão.
 - [Biblioteca M1](README.md) — governança, manuais, release notes e termo.
 
-**Fontes de layout:** [dossiê M1](https://drive.google.com/file/d/1kg6PdhApI156aYAlbSUcQz2gu5XFBEN8/view) (versão original), modelo Word v0.2 e dossiê v0.2 serão publicados como **nova revisão** no Drive. O documento não requer nome de fonte proprietária nem compartilhamento de arquivos de fonte.
+**Referências de layout publicadas, revisão 0.2:** [dossiê M1 em PDF](https://drive.google.com/file/d/1BmL2wpWiB8-7DW-sCXtmGtZ8AAcWPq7E/view), [dossiê DOCX editável](https://docs.google.com/document/d/1oAgIq16brBd3DKf4Vw6sbpco7MpE-aJV/edit), [modelo Word](https://docs.google.com/document/d/164SCN5MAJkVeYoLVqGrWRe5HKHRHtUpQ/edit) e [ZIP editorial](https://drive.google.com/file/d/1g7c8uoRfL9B8KB3YKsmcctRN3vxxd0Od/view). A revisão 0.1 histórica permanece preservada. Este padrão não exige aquisição nem compartilhamento de arquivos de fonte.
