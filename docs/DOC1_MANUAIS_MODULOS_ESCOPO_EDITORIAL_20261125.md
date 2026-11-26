@@ -22,6 +22,10 @@
 
 Os códigos são **identificadores editoriais propostos**, não nomes de arquivos já publicados.
 
+## Padrão visual obrigatório a partir do M1 v0.2
+
+Adotar o [Padrão Editorial M1](entregavel/PADRAO_EDITORIAL_M1.md) em toda nova geração DOCX/PDF: corpo **11,5 pt**, tabelas **10,8 pt**, H1 **19 pt**, H2 **14,2 pt**, A4, margens laterais **1,85 cm**, cabeçalhos repetidos e sem quebras artificiais por seção. Os [modelos reutilizáveis](entregavel/modelos/README.md) definem metadados, procedimentos, tabelas, evidências e revisão. PDF final sempre renderizado e verificado, com DOCX editável e hashes. Não reprocessar manual homologado silenciosamente; criar nova edição.
+
 ## 2. Contrato de cada página de manual
 
 1. **Título, revisão, SHA e status** (“prévia”, “homologada” ou “obsoleta”).
@@ -55,6 +59,10 @@ Fase B — homologar os casos e obter capturas por módulo no SHA escolhido.
 Fase C — redigir guias de Operador, Mantenedor e Liderança primeiro; depois Admin, Prioridades, BI, Histórico, Auditoria, Mobile e TI.  
 Fase D — revisão técnica cruzada em PT-BR; traduzir conforme terminologia do sistema, sem forçar tradução de dados cadastrados.  
 Fase E — gerar DOCX editável + PDF/A quando pertinente + pacote de arquivos, links e checksums; revisar direitos e obter aceite.
+
+## Referências de autoria da Fase 3
+
+Para escrever procedimentos sem suposições, usar o [dicionário de dados](DOC1_DICIONARIO_DADOS_20261125.md), o [fluxo de chamados](DOC1_FLUXOS_OPERACIONAIS_20261125.md), o [inventário de telas](DOC1_MAPA_TELAS_NAVEGACAO_20261125.md) e o [contrato BI](DOC1_CONTRATO_BI_20261125.md). Nenhum screenshot antigo pode substituir o ato de testar a versão definida.
 
 ## 5. Referências
 
