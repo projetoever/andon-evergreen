@@ -183,8 +183,8 @@ test("máquinas têm uma única lista e deixam a OS individual visível apenas c
   assert.match(machineAdmin, /OS obrigatória para todas as máquinas: regra global ativa/);
   assert.match(machineAdmin, /Aguardando confirmação da regra global de OS/);
   assert.match(machineAdmin, /Exigir OS nesta máquina/);
-  assert.match(machineAdmin, /checked=\{selectedMachine\.requireWorkOrderAtOpen === true\}/);
-  assert.match(machineAdmin, /updateMachineCatalog\(selectedMachine\.id, \{/);
+  assert.match(machineAdmin, /checked=\{selectedMachineRequiresWorkOrder\}/);
+  assert.match(machineAdmin, /await updateMachineCatalog\(selectedMachine\.id, patch\)/);
   assert.doesNotMatch(machineAdmin, /setNewRequireWorkOrder\(true\)/);
   assert.doesNotMatch(machineAdmin, /Regra efetiva = global OU exigência desta máquina/);
   assert.match(machineAdmin, /Filtrar máquinas por status/);
@@ -534,4 +534,40 @@ test("CFG-15F: general settings write gate revalidates without changing saved op
     page.indexOf("  }, [centralMode]);"));
   assert.doesNotMatch(onlyGate, /setVirtualKeyboardEnabled|setRequireWorkOrderAtOpen|setDashboardMachineOrderMode|updateSystemSettings/);
   assert.doesNotMatch(onlyGate, /event\.detail/);
+});
+
+test("PENTE 5-B: Máquinas exige salvar e protege alterações pendentes", async () => {
+  const [machine, provider, shell, categories, shifts, technicians, groups,
+    attendance, appearance, sound, assets] = await Promise.all([
+    readFile(new URL("../src/components/settings/MachineAdminPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/context/AndonProvider.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/CategoriesSettingsTab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/ShiftsSettingsTab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/TechniciansSettingsTab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/CallReasonsSettingsTab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/AttendanceModeSettingsTab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/AppearanceSettingsPreview.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/SoundsSettingsTab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/MachineAssetCatalogPanel.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(machine, /machineChangesPending/);
+  assert.match(machine, /handleSaveMachine/);
+  assert.match(machine, /await updateMachineCatalog\(selectedMachine\.id, patch\)/);
+  assert.match(machine, /await updateMachineDirectSectors\(/);
+  assert.match(machine, /sectorVisibilityRevision \?\? 0/);
+  assert.match(machine, /checked=\{selectedMachineRequiresWorkOrder\}/);
+  assert.match(machine, /value=\{activeDraft\?\.name \?\? selectedMachine\.name\}/);
+  assert.match(machine, /disabled=\{!machineChangesPending \|\| !canEditMachineMetadata/);
+  assert.match(machine, /confirmDiscardChanges/);
+  assert.match(machine, /beforeunload/);
+  assert.doesNotMatch(machine, /onBlur=/);
+  assert.doesNotMatch(machine, /visibilitySaving/);
+  assert.match(provider, /const updateMachineCatalog = useCallback\(\s*async/);
+  assert.match(shell, /onDirtyChange=\{setMachineDirty\}/);
+  assert.match(shell, /if \(id === tab \|\| !canLeaveEditor\(\)\) return/);
+  assert.match(shell, /onBack=\{handleAdminBack\}/);
+  for (const form of [categories, shifts, technicians, groups, attendance, appearance, sound, assets]) {
+    assert.match(form, /Salvar|salvar|handleSave|saveSoundConfig|saveGlobalVisualPalette/);
+  }
 });
