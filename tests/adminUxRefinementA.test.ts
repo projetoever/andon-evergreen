@@ -398,7 +398,9 @@ test("R12-04H1: ten ANDON settings tabs remain visible but central machine inven
   assert.match(modal, /const visibleTabs = tabs;/);
   assert.equal((modal.match(/^    id: "(general|appearance|sounds|attendance|technicians|shifts|categories|classifications|assetCatalogs|machines)",$/gm) ?? []).length, 10);
   assert.match(modal, /<MachineAdminPanel centralAccess=\{centralAccess\}/);
-  assert.match(machine, /function MachineAdminPanel\(\{ centralAccess = false \}/);
+  assert.match(machine, /export function MachineAdminPanel\(\{/);
+  assert.match(machine, /centralAccess = false/);
+  assert.match(machine, /onDirtyChange/);
   assert.match(machine, /<SelectTrigger disabled=\{centralAccess\}>/);
   assert.match(machine, /disabled=\{centralAccess \|\| Boolean\(selectedMachine\.currentCallId\)\}/);
   assert.match(machine, /Modo de produção e ativação exigem ações operacionais próprias/);
