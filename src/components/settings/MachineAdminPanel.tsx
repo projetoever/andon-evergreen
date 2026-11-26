@@ -310,12 +310,12 @@ export function MachineAdminPanel({
   useEffect(() => {
     if (creating) return;
     const selectedVisible = filteredMachines.some((machine) => machine.id === selectedMachineId);
-    if (selectedVisible) return;
+    if (selectedVisible || hasUnsavedChanges || isSavingMachine) return;
     setSelectedMachineId(filteredMachines[0]?.id ?? null);
-  }, [creating, filteredMachines, selectedMachineId]);
+  }, [creating, filteredMachines, selectedMachineId, hasUnsavedChanges, isSavingMachine]);
 
   function handleStartCreate() {
-    if (!canCreateMachine) return;
+    if (!canCreateMachine || isSavingMachine || !confirmDiscardChanges()) return;
     setCreating(true);
     setSelectedMachineId(null);
     setNewId("");
@@ -471,9 +471,11 @@ export function MachineAdminPanel({
                 key={machine.id}
                 type="button"
                 onClick={() => {
+                  if (isSavingMachine || !confirmDiscardChanges()) return;
                   setCreating(false);
                   setSelectedMachineId(machine.id);
                 }}
+                disabled={isSavingMachine}
                 className={cn(
                   "w-full rounded-lg border px-3 py-2.5 text-left transition-colors",
                   selected
@@ -638,7 +640,7 @@ export function MachineAdminPanel({
                   <h3 className="truncate text-xl font-black">{selectedMachine.name}</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {ui(
-                      "Alterações de configuração são aplicadas ao sair do campo ou alterar o controle.",
+                      "Edite os dados cadastrais e a visibilidade dos setores. Use Salvar alterações para aplicar.",
                     )}
                   </p>
                 </div>
@@ -653,6 +655,27 @@ export function MachineAdminPanel({
               >
                 {selectedMachine.isActive ? ui("Ativa") : ui("Inativa")}
               </span>
+            </div>
+
+            <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+              <p role="status" aria-live="polite" className={cn(
+                "text-xs font-semibold",
+                machineChangesPending ? "text-warning" : "text-muted-foreground",
+              )}>
+                {machineChangesPending ? ui("Alterações não salvas") : ui("Sem alterações pendentes")}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="outline" onClick={discardMachineChanges}
+                  disabled={!machineChangesPending || isSavingMachine}>
+                  {ui("Descartar alterações")}
+                </Button>
+                <Button type="button" onClick={() => void handleSaveMachine()}
+                  disabled={!machineChangesPending || !canEditMachineMetadata || isSavingMachine ||
+                    !activeDraft?.name.trim()}>
+                  <Save aria-hidden="true" className="mr-2 h-4 w-4" />
+                  {isSavingMachine ? ui("Salvando...") : ui("Salvar alterações")}
+                </Button>
+              </div>
             </div>
 
             <Section title={ui("Identificação")}>
