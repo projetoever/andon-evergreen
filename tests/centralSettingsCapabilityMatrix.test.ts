@@ -82,12 +82,12 @@ test("CFG-15D3B: Machine Admin separates central machine creation from metadata 
   assert.ok(panel.includes('if (!canCreateMachine) return;'));
   assert.ok(panel.includes('disabled={!canCreateMachine}'));
   assert.ok(panel.includes('disabled={!newId.trim() || !canCreateMachine}'));
-  assert.ok(panel.includes('disabled={!canEditMachineMetadata}'));
+  assert.ok(panel.includes('disabled={!canEditMachineMetadata || isSavingMachine}'));
   assert.ok(panel.includes('if (!canEditMachineMetadata) return;'));
   assert.ok(panel.includes('if (centralAccess) return;'));
   assert.ok(panel.includes('<SelectTrigger disabled={centralAccess}>'));
   assert.ok(panel.includes('disabled={centralAccess || Boolean(selectedMachine.currentCallId)}'));
-  assert.ok(panel.includes('updateMachineCatalog(selectedMachine.id, {'));
+  assert.ok(panel.includes('await updateMachineCatalog(selectedMachine.id, patch)'));
   assert.ok(panel.includes('updateMachineProductionMode(selectedMachine.id, value as ProductionMode)'));
   assert.ok(settings.includes('centralMachineCreateEnabled: centralMachineCreateEnabled()'));
   assert.ok(settings.includes('centralMachineSettingsWriteEnabled: centralMachineSettingsEnabled()'));

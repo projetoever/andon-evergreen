@@ -1074,5 +1074,15 @@
     "A seleção múltipla exige pelo menos dois setores sem chamados ativos.",
     "Multiple selection requires at least two sectors without active calls.",
     "多重選取至少需要兩個沒有進行中呼叫的部門。"
-  ]
+  ],
+  ["Edite os dados cadastrais e a visibilidade dos setores. Use Salvar alterações para aplicar.","Edit registration details and sector visibility. Select Save changes to apply them.","編輯設備登記資料和部門顯示設定，然後按「儲存變更」套用。"],
+  ["A visibilidade será aplicada após salvar.","Visibility changes take effect after saving.","部門顯示設定將在儲存後生效。"],
+  ["Há alterações não salvas. Deseja descartá-las?","You have unsaved changes. Discard them?","有尚未儲存的變更。要捨棄這些變更嗎？"],
+  ["Sem alterações pendentes","No pending changes","沒有待儲存的變更"],
+  ["Descartar alterações","Discard changes","捨棄變更"],
+  ["Salvar alterações","Save changes","儲存變更"],
+  ["Informe o nome da máquina antes de salvar.","Enter a machine name before saving.","儲存前請輸入設備名稱。"],
+  ["Alterações da máquina salvas.","Machine changes saved.","設備變更已儲存。"],
+  ["Cadastro salvo, mas não foi possível salvar os setores. Verifique e tente novamente.","Registration details were saved, but sector visibility could not be saved. Review and retry.","登記資料已儲存，但無法儲存部門顯示設定。請檢查後重試。"],
+  ["Não foi possível salvar a máquina. Verifique e tente novamente.","Could not save the machine. Review and retry.","無法儲存設備資料。請檢查後重試。"]
 ]

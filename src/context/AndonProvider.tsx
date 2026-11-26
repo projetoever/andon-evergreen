@@ -85,7 +85,7 @@ interface AndonContextValue {
       productionMode?: ProductionMode;
       requireWorkOrderAtOpen?: boolean;
     },
-  ) => void;
+  ) => Promise<void>;
   updateMachineDirectSectors: (
     machineId: string, hiddenDirectSectorIds: string[], expectedSectorVisibilityRevision: number,
   ) => Promise<void>;
@@ -410,18 +410,19 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   );
 
   const updateMachineCatalog = useCallback(
-    (
+    async (
       machineId: string,
       patch: {
         name?: string;
         requireWorkOrderAtOpen?: boolean;
       },
     ) => {
-      void andonRepository.updateMachineCatalog(machines, machineId, patch).then((result) => {
-        setMachines(result.machines.map(andonService.normalizeMachine));
-      }).catch(handleRepositoryError);
+      // The editor must await server confirmation before showing "saved".
+      // Errors propagate to its form; do not mask failed writes as success.
+      const result = await andonRepository.updateMachineCatalog(machines, machineId, patch);
+      setMachines(result.machines.map(andonService.normalizeMachine));
     },
-    [machines, handleRepositoryError],
+    [machines],
   );
 
   const updateMachineDirectSectors = useCallback(async (

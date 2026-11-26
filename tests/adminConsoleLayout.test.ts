@@ -32,7 +32,8 @@ test("navegação admin permanece responsiva em telas menores", async () => {
   assert.match(shared, /overflow-x-auto/);
   assert.match(shared, /lg:hidden/);
   assert.match(source, /Sair do modo admin/);
-  assert.match(source, /onBack=\{onClose\}/);
+  assert.match(source, /onBack=\{handleAdminBack\}/);
+  assert.match(source, /canLeaveEditor/);
 });
 
 test("não cria aba de notificações sem necessidade funcional", async () => {
