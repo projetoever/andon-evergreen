@@ -689,15 +689,12 @@ export function MachineAdminPanel({
                 <div className="space-y-1">
                   <Label>{ui("Nome")}</Label>
                   <Input
-                    key={selectedMachine.id}
-                    defaultValue={selectedMachine.name}
-                    disabled={!canEditMachineMetadata}
-                    onBlur={(event) => {
+                    value={activeDraft?.name ?? selectedMachine.name}
+                    disabled={!canEditMachineMetadata || isSavingMachine}
+                    onChange={(event) => {
                       if (!canEditMachineMetadata) return;
-                      const name = event.target.value.trim();
-                      if (name && name !== selectedMachine.name) {
-                        updateMachineCatalog(selectedMachine.id, { name });
-                      }
+                      setMachineDraft(previous => previous?.machineId === selectedMachine.id
+                        ? { ...previous, name: event.target.value } : previous);
                     }}
                   />
                 </div>
@@ -733,13 +730,12 @@ export function MachineAdminPanel({
                       </span>
                     </span>
                     <Switch
-                      checked={selectedMachine.requireWorkOrderAtOpen === true}
-                      disabled={!canEditMachineMetadata}
+                      checked={selectedMachineRequiresWorkOrder}
+                      disabled={!canEditMachineMetadata || isSavingMachine}
                       onCheckedChange={(checked) => {
                         if (!canEditMachineMetadata) return;
-                        updateMachineCatalog(selectedMachine.id, {
-                          requireWorkOrderAtOpen: checked,
-                        });
+                        setMachineDraft(previous => previous?.machineId === selectedMachine.id
+                          ? { ...previous, requireWorkOrderAtOpen: checked } : previous);
                       }}
                     />
                   </label>
@@ -785,7 +781,7 @@ export function MachineAdminPanel({
             {centralAccess && (
               <Section
                 title={ui("Setores na tela desta máquina")}
-                description={ui("Ocultar aqui não inativa o setor nem o retira dos Grupos. Se houver chamado ativo, o botão reaparece temporariamente para atendimento.")}
+                description={ui("Ocultar aqui não inativa o setor nem o retira dos Grupos. Se houver chamado ativo, o botão reaparece temporariamente para atendimento.") + " " + ui("A visibilidade será aplicada após salvar.")}
               >
                 {visibilityLoadFailed && <p role="alert" className="text-sm text-destructive">
                   {ui("Não foi possível carregar a lista de setores. A edição está bloqueada.")}
@@ -794,7 +790,7 @@ export function MachineAdminPanel({
                 {sectorCatalog?.filter(sector => sector.active).map(sector => {
                   const globalVisible = sector.showDirectButton !== false;
                   const checked = globalVisible &&
-                    !(selectedMachine.hiddenDirectSectorIds ?? []).includes(sector.id);
+                    !(activeDraft?.hiddenDirectSectorIds ?? selectedMachine.hiddenDirectSectorIds ?? []).includes(sector.id);
                   return (
                     <label key={sector.id} className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
                       <span className="min-w-0">
@@ -803,8 +799,8 @@ export function MachineAdminPanel({
                       </span>
                       <Switch aria-label={ui("Exibir setor na tela desta máquina") + ": " + sector.displayName}
                         checked={checked}
-                        disabled={!canEditMachineMetadata || visibilitySaving || !globalVisible}
-                        onCheckedChange={visible => void updateDirectVisibility(selectedMachine, sector.id, visible)} />
+                        disabled={!canEditMachineMetadata || isSavingMachine || !globalVisible}
+                        onCheckedChange={visible => updateDirectVisibility(selectedMachine, sector.id, visible)} />
                     </label>
                   );
                 })}
