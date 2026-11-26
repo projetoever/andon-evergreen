@@ -6,6 +6,10 @@ O **ANDON Web Industrial** é uma plataforma local para conectar operação, man
 
 A solução foi desenhada para ambientes industriais que precisam de implantação controlada, funcionamento na rede interna e domínio sobre seus próprios dados — sem depender de uma nuvem externa para a operação diária.
 
+## Documentação — acesso rápido e padrão editorial
+
+A consulta recomendada começa pelo [Índice oficial da documentação](docs/README.md), segue para a [Biblioteca do marco M1](docs/entregavel/README.md) e utiliza o [Padrão editorial e modelos](docs/entregavel/PADRAO_EDITORIAL_M1.md) para relatórios e manuais. Os registros históricos de REFINE/PENTE/SEC04 continuam preservados e navegáveis pelo [índice histórico](docs/ARQUIVO_HISTORICO.md). O marco M1 ainda é de **pré-entrega documental**: não declarar homologação industrial, licença comercial ou implantação com base na existência de documentos.
+
 ## Marco documental — 25/11/2026
 
 O marco técnico **DOC 1** consolida os refinamentos REFINE 23, PENTE 1–6 e MOB 1 em [registro de baseline](docs/DOC1_MARCO_20261125.md), [matriz funcional e casos de homologação](docs/DOC1_MATRIZ_FUNCIONAL_20261125.md) e [plano de manuais/entregável](docs/DOC1_PLANO_ENTREGAVEL_20261125.md). A revisão partiu de `main@6018335c6f085757a0fd35faed8a2893f4f03e0a` e da versão do instalador `1.0.0-pilot.3`.
